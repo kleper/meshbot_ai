@@ -1,0 +1,80 @@
+<section class="card" data-active-tab="directorio">
+  {% if flash_message %}
+    <div class="alert-banner" role="status">{{ flash_message }}</div>
+  {% endif %}
+
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">📇 Base de Conocimiento Comunitario ({{ total_kb_items }} fichas)</h2>
+      <p class="card-subtitle" style="margin-bottom: 0.6rem;">
+        Búsqueda instantánea con SQLite FTS5 (sin tildes + sinónimos rurales de Playa Rica).
+      </p>
+    </div>
+    <a href="/ui/agregar"
+       hx-get="/ui/agregar"
+       hx-target="#tab-content"
+       hx-push-url="true"
+       class="btn btn-primary btn-sm">
+      ➕ Nueva Ficha Local
+    </a>
+  </div>
+
+  <form class="toolbar"
+        action="/ui/partials/kb-cards"
+        method="GET"
+        hx-get="/ui/partials/kb-cards"
+        hx-target="#kb-cards-container"
+        hx-trigger="submit, input from:#search-input changed delay:180ms, search from:#search-input">
+    <input type="hidden" id="filter-categoria" name="categoria" value="{{ selected_categoria }}" />
+
+    <div>
+      <label for="search-input" style="position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0);">
+        Buscar en el directorio local
+      </label>
+      <input
+        type="search"
+        id="search-input"
+        name="q"
+        value="{{ query }}"
+        placeholder="🔍 Buscar por nombre, oficio, teléfono, 'chiva', 'escalera', 'médico', 'gas'..."
+      />
+    </div>
+
+    <div class="filter-chips" role="group" aria-label="Filtrar por categoría">
+      <button type="submit"
+              class="chip {% if not selected_categoria %}active{% endif %}"
+              onclick="selectCategoryChip(this, '')">
+        Todas
+      </button>
+      <button type="submit"
+              class="chip {% if selected_categoria == 'transporte' %}active{% endif %}"
+              onclick="selectCategoryChip(this, 'transporte')">
+        🚌 Transporte
+      </button>
+      <button type="submit"
+              class="chip {% if selected_categoria == 'directorio' %}active{% endif %}"
+              onclick="selectCategoryChip(this, 'directorio')">
+        📇 Directorio
+      </button>
+      <button type="submit"
+              class="chip {% if selected_categoria == 'emergencias' %}active{% endif %}"
+              onclick="selectCategoryChip(this, 'emergencias')">
+        🚨 Emergencias
+      </button>
+      <button type="submit"
+              class="chip {% if selected_categoria == 'avisos' %}active{% endif %}"
+              onclick="selectCategoryChip(this, 'avisos')">
+        📢 Avisos
+      </button>
+      <button type="submit"
+              class="chip {% if selected_categoria == 'agro' %}active{% endif %}"
+              onclick="selectCategoryChip(this, 'agro')">
+        🌾 Agro
+      </button>
+    </div>
+  </form>
+
+  <div id="kb-cards-container">
+    {% include "partials/kb_cards.html" %}
+  </div>
+</section>

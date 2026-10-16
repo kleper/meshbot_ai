@@ -14,7 +14,7 @@ PREFIX = "🤖 "
 DEFAULT_HOST = os.getenv("MESHTASTIC_HOST", "192.168.68.68")
 DEFAULT_PORT = os.getenv("MESHTASTIC_PORT", "")
 DEFAULT_OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:8000/api/generate")
-DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
 DEFAULT_CHANNEL_NAME = os.getenv("MESHTASTIC_CHANNEL", "PlayaRica")
 DEFAULT_LOCATION = os.getenv("DEFAULT_LOCATION", "San Roque Playa Rica")
 COOLDOWN_SECONDS = int(os.getenv("COOLDOWN_SECONDS", "5"))
@@ -22,11 +22,16 @@ MAX_CHARS = int(os.getenv("MAX_CHARS", "620"))
 DEFAULT_MAX_PARTS = int(os.getenv("MAX_PARTS", "3"))
 PACKET_PAUSE_SECONDS = float(os.getenv("PACKET_PAUSE_SECONDS", "4.0"))
 
-# Configuración de FastAPI y Caché
+# Configuración de FastAPI, Caché y Base de Conocimiento Local (RAG SQLite FTS5)
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8002"))
 WEATHER_CACHE_TTL = int(os.getenv("WEATHER_CACHE_TTL", "900"))  # 15 minutos en segundos
+LLM_CACHE_TTL = int(os.getenv("LLM_CACHE_TTL", "1800"))  # 30 minutos en segundos
 HISTORY_MAX_ITEMS = int(os.getenv("HISTORY_MAX_ITEMS", "50"))
+KB_DATA_DIR = os.getenv(
+    "KB_DATA_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"),
+)
 
 
 @dataclass
@@ -47,6 +52,7 @@ class BotConfig:
     api_port: int = API_PORT
     weather_cache_ttl: int = WEATHER_CACHE_TTL
     history_max_items: int = HISTORY_MAX_ITEMS
+    kb_data_dir: str = KB_DATA_DIR
 
 
 SYSTEM_PROMPT = (
@@ -56,6 +62,14 @@ SYSTEM_PROMPT = (
     "1. Expresa 1 o 2 oraciones completas de máximo 300 caracteres. "
     "2. Concluye SIEMPRE tu respuesta con punto final. NUNCA dejes oraciones incompletas ni a medias. "
     "3. No uses formato markdown (sin asteriscos ni almohadillas), sin comillas dobles y sin rodeos."
+)
+
+PUBLIC_DIRECTORY_SYSTEM_PROMPT = (
+    "Eres el asistente oficial del Directorio Comunitario Público de la vereda Playa Rica (San Roque, Antioquia). "
+    "Toda la información de referencia proporcionada (teléfonos de transporte, emergencias, oficios y horarios) "
+    "es información pública autorizada por la comunidad para difusión abierta por radio LoRa. "
+    "Responde siempre en español en 1 o 2 oraciones cortas, incluyendo exactamente los teléfonos y horarios "
+    "indicados en la referencia, sin asteriscos y terminando con punto final."
 )
 
 RURAL_WEATHER_SYSTEM_PROMPT = (

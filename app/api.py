@@ -1,5 +1,7 @@
 """
 Servidor HTTP ligero con FastAPI (puerto 8002 por defecto) para:
+- / y /ui: Interfaz Web Local 100% Responsive para gestionar el Conocimiento Comunitario (RAG Local)
+- /kb: API CRUD y búsqueda FTS5 BM25 sobre la Base de Conocimiento Local
 - /health: Monitoreo real de salud del socket TCP Meshtastic, hilo _rxThread y caché (Docker HEALTHCHECK)
 - /nodes: Estado en vivo de los nodos de la malla LoRa (GPS, batería, SNR, distancia) en JSON
 - /messages: Últimos 50 mensajes recibidos y respuestas enviadas desde el ring buffer en memoria
@@ -9,8 +11,10 @@ Servidor HTTP ligero con FastAPI (puerto 8002 por defecto) para:
 """
 
 from contextlib import asynccontextmanager
+import os
 import time
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import __version__
@@ -18,6 +22,9 @@ from app.config import MAX_PACKET_BYTES
 from app.formatter import split_into_packets
 from app.mesh_service import MeshtasticAIBot
 from app.services.weather import clear_weather_cache, get_weather_cache_stats
+from app.ui_routes import create_ui_router
+
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 
 class SimulateRequest(BaseModel):
@@ -28,6 +35,15 @@ class SimulateRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=650, description="Texto a transmitir al canal LoRa")
+
+
+class KnowledgeItemRequest(BaseModel):
+    id: int | None = Field(default=None, description="ID opcional para actualizar una ficha existente")
+    categoria: str = Field(default="directorio", max_length=40, description="Categoría: transporte, directorio, emergencias, avisos, agro")
+    titulo: str = Field(..., min_length=2, max_length=120, description="Título corto del registro comunitario")
+    respuesta: str = Field(..., min_length=3, max_length=550, description="Información o respuesta que entregará el bot")
+    keywords: str = Field(default="", max_length=250, description="Palabras clave o sinónimos opcionales")
+    autor: str = Field(default="web", max_length=60, description="Autor u origen del registro")
 
 
 def create_app(bot: MeshtasticAIBot, start_mesh_on_boot: bool = True) -> FastAPI:
@@ -43,10 +59,15 @@ def create_app(bot: MeshtasticAIBot, start_mesh_on_boot: bool = True) -> FastAPI
 
     app = FastAPI(
         title="Meshtastic AI Bot API (Canal PlayaRica)",
-        description="API de observabilidad, simulación sin airtime y control del Bot LoRa Meshtastic + Hailo-Ollama.",
+        description="Interfaz Web Local (HTMX + Jinja2), RAG Comunitario SQLite FTS5, simulador sin airtime y control del Bot LoRa Meshtastic + Hailo-Ollama.",
         version=__version__,
         lifespan=lifespan,
     )
+
+    if os.path.isdir(STATIC_DIR):
+        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    app.include_router(create_ui_router(bot))
 
     @app.get("/health", summary="Estado de salud del bot y del socket TCP Meshtastic")
     def get_health():
@@ -65,8 +86,79 @@ def create_app(bot: MeshtasticAIBot, start_mesh_on_boot: bool = True) -> FastAPI
             "queue_size": bot.rx_queue.qsize(),
             "history_count": len(bot.message_history),
             "weather_cache": get_weather_cache_stats(),
+            "knowledge_base": bot.knowledge.get_stats(),
             "uptime_seconds": uptime,
         }
+
+    # ------------------------------------------------------------------
+    # Endpoints CRUD de la Base de Conocimiento Comunitario (/kb)
+    # ------------------------------------------------------------------
+    @app.get("/kb", summary="Listar o buscar fichas de conocimiento comunitario local")
+    def list_or_search_kb(
+        q: str = Query(default="", description="Consulta de búsqueda FTS5 con sinónimos rurales"),
+        categoria: str = Query(default="", description="Filtrar por categoría (transporte, directorio, emergencias, avisos, agro)"),
+        limit: int = Query(default=100, ge=1, le=500),
+    ):
+        total_all = len(bot.knowledge.list_items())
+        if q.strip():
+            items = bot.knowledge.search(q.strip(), limit=limit, categoria=categoria.strip())
+        else:
+            items = bot.knowledge.list_items(categoria=categoria.strip())[:limit]
+        return {
+            "total_count": total_all,
+            "count": len(items),
+            "query": q,
+            "categoria": categoria,
+            "items": items,
+        }
+
+    @app.get("/kb/{item_id}", summary="Obtener una ficha de conocimiento local por ID")
+    def get_kb_item(item_id: int):
+        item = bot.knowledge.get_item(item_id)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"No existe la ficha #{item_id}")
+        return item
+
+    @app.post("/kb", summary="Crear o actualizar una ficha de conocimiento local")
+    def create_or_update_kb_item(req: KnowledgeItemRequest):
+        try:
+            saved = bot.knowledge.add_or_update_item(
+                titulo=req.titulo,
+                respuesta=req.respuesta,
+                categoria=req.categoria,
+                keywords=req.keywords,
+                autor=req.autor,
+                item_id=req.id,
+            )
+            return {"status": "saved", "item": saved}
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.put("/kb/{item_id}", summary="Actualizar una ficha de conocimiento local existente")
+    def update_kb_item(item_id: int, req: KnowledgeItemRequest):
+        try:
+            saved = bot.knowledge.add_or_update_item(
+                titulo=req.titulo,
+                respuesta=req.respuesta,
+                categoria=req.categoria,
+                keywords=req.keywords,
+                autor=req.autor,
+                item_id=item_id,
+            )
+            return {"status": "updated", "item": saved}
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.delete("/kb/{item_id}", summary="Eliminar una ficha de conocimiento local por ID")
+    def delete_kb_item(item_id: int):
+        deleted = bot.knowledge.delete_item(item_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"No existe la ficha #{item_id}")
+        return {"status": "deleted", "id": item_id}
 
     @app.get("/nodes", summary="Lista de nodos de la malla con GPS, batería y SNR")
     def get_nodes():
@@ -151,3 +243,4 @@ def create_app(bot: MeshtasticAIBot, start_mesh_on_boot: bool = True) -> FastAPI
         return clear_weather_cache()
 
     return app
+

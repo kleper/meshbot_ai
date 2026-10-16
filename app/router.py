@@ -103,13 +103,46 @@ class MessageRouter:
         # 1. Comandos directos
         if lower in ("!ayuda", "/ayuda", "?ayuda", "!help"):
             return (
-                "Comandos: !clima [lugar/nodo], !pronostico [lugar], !gps [nodo/lista], "
-                "!telem [nodo/red], !wiki [tema], !buscar [texto], !nodos, !hora, o pregúntame."
+                "Comandos: !info [tema], !guardar [Titulo: Dato], !clima [lugar], "
+                "!gps [nodo], !telem [nodo], !wiki [tema], !buscar [texto], !nodos, !hora."
             )
 
         if lower in ("!hora", "/hora", "!time"):
             now_str = datetime.datetime.now().strftime("%H:%M:%S (%d/%m)")
             return f"Hora local: {now_str}."
+
+        # Comandos para AGREGAR contenido local desde el canal LoRa (!guardar, !agregar, !anotar, !nuevo)
+        if any(
+            lower == cmd or lower.startswith(f"{cmd} ")
+            for cmd in ("!guardar", "/guardar", "!agregar", "/agregar", "!anotar", "/anotar", "!nuevo", "/nuevo")
+        ):
+            parts = raw.split(maxsplit=1)
+            payload = parts[1].strip() if len(parts) > 1 else ""
+            return self.bot.knowledge.save_from_mesh_command(payload, sender_id=sender_id or "lora")
+
+        # Comandos para BORRAR una ficha local por ID desde el canal LoRa (!borrar_info 5)
+        if any(
+            lower == cmd or lower.startswith(f"{cmd} ")
+            for cmd in ("!borrar_info", "/borrar_info", "!eliminar_info", "/eliminar_info")
+        ):
+            parts = raw.split(maxsplit=1)
+            arg = parts[1].strip().lstrip("#") if len(parts) > 1 else ""
+            if arg.isdigit():
+                deleted = self.bot.knowledge.delete_item(int(arg))
+                if deleted:
+                    return f"🗑️ Ficha local #{arg} eliminada correctamente."
+                return f"No se encontró la ficha local #{arg}."
+            return "Uso: !borrar_info [número_id] (Ej: !borrar_info 4)."
+
+        # Comandos para CONSULTAR el Conocimiento Local (!info, !directorio, !local)
+        if any(
+            lower == cmd or lower.startswith(f"{cmd} ")
+            for cmd in ("!info", "/info", "!directorio", "/directorio", "!local", "/local", "!buscar_local")
+        ):
+            parts = raw.split(maxsplit=1)
+            query_arg = parts[1].strip() if len(parts) > 1 else ""
+            direct_reply, _ = self.bot.knowledge.query_knowledge(query_arg, is_explicit_command=True)
+            return direct_reply
 
         # Comandos GPS y Ubicación
         if (
@@ -297,6 +330,14 @@ class MessageRouter:
             w_info = self.get_weather_response(loc, sender_id=sender_id, sender_num=sender_num)
             if w_info and not w_info.startswith("No se pudo"):
                 return w_info
+
+        # Detección en Conocimiento Comunitario Local (RAG Híbrido SQLite FTS5 Nivel 1 y 2)
+        if hasattr(self.bot, "knowledge") and self.bot.knowledge is not None:
+            direct_kb, rag_kb_context = self.bot.knowledge.query_knowledge(raw, is_explicit_command=False)
+            if direct_kb:
+                return direct_kb
+            if rag_kb_context:
+                return self.bot.query_llm(raw, context=rag_kb_context, is_public_directory=True)
 
         # Detección de Definición / Pregunta Enciclopédica
         if (

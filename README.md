@@ -16,7 +16,7 @@ meshtastic-bot/
 │   ├── router.py            # Despachador de comandos (!clima, !gps, !telem, !wiki) y lenguaje natural
 │   ├── api.py               # Servidor FastAPI en puerto 8002 (/health, /nodes, /messages, /simulate, /send)
 │   └── services/
-│       ├── llm.py           # Cliente Hailo-Ollama (qwen2.5:1.5b) y lectura rural del clima
+│       ├── llm.py           # Cliente Hailo-Ollama (qwen3:1.7b) y lectura rural del clima
 │       ├── weather.py       # Geocodificación (Nominatim/Open-Meteo), pronóstico extendido y caché TTL (15 min)
 │       ├── telemetry.py     # Haversine, rumbos cardinales, GPS, telemetría y exportación JSON (/nodes)
 │       └── search.py        # Wikipedia API y DuckDuckGo HTML Lite (100% sin API keys)
@@ -37,7 +37,7 @@ meshtastic-bot/
 * **Clima, Pronóstico Extendido y Lectura Rural con IA (3 paquetes + Caché TTL 15 min):**
   * **Paquete `[1/3]` (Estado actual + próximas horas):** Condición del cielo en español, temperatura, sensación térmica (`ST`), mínima/máxima del día, humedad, viento con dirección cardinal, índice UV, probabilidad/acumulado de lluvia (`mm`) y evolución por horas (`Próx`).
   * **Paquete `[2/3]` (Jornadas del día):** Resumen climático detallado para **`Mañana` (06-12h)**, **`Tarde` (12-18h)**, **`Noche` (18-24h)** y **`Mañ.sig`** (día siguiente).
-  * **Paquete `[3/3]` (`🌾 Campo:` Lectura IA para trabajadores del campo):** Los datos meteorológicos se pasan por el LLM local (`qwen2.5:1.5b`) para entregar una explicación en lenguaje cotidiano sin tecnicismos (si hará frío, calor o bochorno, en qué momento lloverá suave o caerá aguacero, y recomendaciones prácticas para labores agrícolas/ganaderas).
+  * **Paquete `[3/3]` (`🌾 Campo:` Lectura IA para trabajadores del campo):** Los datos meteorológicos se pasan por el LLM local (`qwen3:1.7b`) para entregar una explicación en lenguaje cotidiano sin tecnicismos (si hará frío, calor o bochorno, en qué momento lloverá suave o caerá aguacero, y recomendaciones prácticas para labores agrícolas/ganaderas).
   * **Caché inteligente en memoria (TTL 15 min):** Si varios usuarios consultan la misma ubicación dentro de una ventana de 15 minutos, el bot responde en `<5ms` sin volver a consultar Internet ni ocupar la NPU Hailo.
 * **Cola de Trabajo Asíncrona (*Worker Queue*):** El callback `on_receive` filtra y encola paquetes en `<1ms` sin bloquear jamás el hilo lector TCP (`_rxThread`) de la librería `meshtastic`.
 * **Servidor HTTP FastAPI Integrado (Puerto `8002`):**

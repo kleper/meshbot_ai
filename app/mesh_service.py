@@ -25,6 +25,7 @@ from app.config import (
     DEFAULT_OLLAMA_URL,
     DEFAULT_PORT,
     HISTORY_MAX_ITEMS,
+    KB_DATA_DIR,
     MAX_CHARS,
     MAX_PACKET_BYTES,
     PACKET_PAUSE_SECONDS,
@@ -32,6 +33,7 @@ from app.config import (
 )
 from app.formatter import clean_text, format_output, split_into_packets
 from app.router import MessageRouter
+from app.services.knowledge import LocalKnowledgeService
 from app.services.llm import LLMService
 from app.services.telemetry import TelemetryService
 
@@ -52,6 +54,7 @@ class MeshtasticAIBot:
         max_parts: int = DEFAULT_MAX_PARTS,
         cooldown_seconds: int = COOLDOWN_SECONDS,
         packet_pause_seconds: float = PACKET_PAUSE_SECONDS,
+        kb_data_dir: str = KB_DATA_DIR,
     ):
         self.host = host
         self.serial_port = serial_port
@@ -62,6 +65,7 @@ class MeshtasticAIBot:
         self.max_parts = max_parts
         self.cooldown_seconds = cooldown_seconds
         self.packet_pause_seconds = packet_pause_seconds
+        self.kb_data_dir = kb_data_dir
 
         self.interface = None
         self.target_channel_index = None
@@ -81,6 +85,7 @@ class MeshtasticAIBot:
 
         # Sub-servicios modulares
         self.llm = LLMService(ollama_url=self.ollama_url, model=self.model)
+        self.knowledge = LocalKnowledgeService(data_dir=self.kb_data_dir)
         self.telemetry = TelemetryService(self)
         self.router = MessageRouter(self)
 
@@ -93,8 +98,8 @@ class MeshtasticAIBot:
     def format_output(self, reply: str) -> str:
         return format_output(reply, max_chars=self.max_chars)
 
-    def query_llm(self, prompt_text: str, context: str = "") -> str:
-        return self.llm.query_llm(prompt_text, context=context)
+    def query_llm(self, prompt_text: str, context: str = "", is_public_directory: bool = False) -> str:
+        return self.llm.query_llm(prompt_text, context=context, is_public_directory=is_public_directory)
 
     def generate_field_weather_reading(self, rural_brief: str) -> str:
         return self.llm.generate_field_weather_reading(rural_brief)

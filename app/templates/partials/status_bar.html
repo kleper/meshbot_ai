@@ -1,0 +1,14 @@
+<div class="status-pills">
+  <span class="pill">
+    <span class="dot {% if interface_healthy %}ok{% endif %}"></span>
+    <span>
+      {% if interface_healthy %}
+        LoRa OK ({{ channel_name }})
+      {% else %}
+        Reconectando LoRa...
+      {% endif %}
+    </span>
+  </span>
+  <span class="pill">🧠 {{ ollama_model }}</span>
+  <span class="pill">📚 {{ total_kb_items }} fichas</span>
+</div>

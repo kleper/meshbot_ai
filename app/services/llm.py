@@ -1,14 +1,21 @@
 """
 Servicio de inferencia LLM local con Hailo-Ollama (NPU Hailo-10H).
-Incluye consultas generales y traducción de datos meteorológicos a lenguaje sencillo de campo.
+Incluye:
+- Semáforo de concurrencia (threading.Lock) para proteger el único contexto VDevice de la NPU
+- Caché en memoria con TTL para respuestas repetidas
+- Soporte para Directorio Comunitario Público (RAG Local) y lectura meteorológica de campo
 """
 
 import logging
 import re
+import threading
+import time
 import requests
 from app.config import (
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_URL,
+    LLM_CACHE_TTL,
+    PUBLIC_DIRECTORY_SYSTEM_PROMPT,
     RURAL_WEATHER_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
 )
@@ -16,50 +23,94 @@ from app.formatter import clean_text, trim_to_complete_sentences
 
 logger = logging.getLogger("MeshtasticBot.LLM")
 
+_NPU_LOCK = threading.Lock()
+_LLM_CACHE: dict[str, tuple[float, str]] = {}
+_LLM_CACHE_MAX_SIZE = 128
+
+
+def clear_llm_cache() -> dict:
+    """Limpia el caché en memoria de respuestas del LLM."""
+    count = len(_LLM_CACHE)
+    _LLM_CACHE.clear()
+    return {"cleared_entries": count}
+
 
 class LLMService:
-    """Cliente para el servidor local Hailo-Ollama."""
+    """Cliente para el servidor local Hailo-Ollama con protección de concurrencia NPU."""
 
     def __init__(self, ollama_url: str = DEFAULT_OLLAMA_URL, model: str = DEFAULT_MODEL):
         self.ollama_url = ollama_url
         self.model = model
 
-    def query_llm(self, prompt_text: str, context: str = "") -> str:
+    def query_llm(
+        self,
+        prompt_text: str,
+        context: str = "",
+        is_public_directory: bool = False,
+        use_cache: bool = True,
+    ) -> str:
         """Llama a Hailo-Ollama para generar una respuesta concisa de 1 a 2 oraciones."""
+        cache_key = f"{self.model}|{int(is_public_directory)}|{prompt_text.strip().lower()}|{context.strip()}"
+        now = time.time()
+
+        if use_cache and cache_key in _LLM_CACHE:
+            ts, cached_val = _LLM_CACHE[cache_key]
+            if (now - ts) < LLM_CACHE_TTL:
+                logger.info("⚡ Respuesta LLM servida desde caché en memoria (<1ms).")
+                return cached_val
+            _LLM_CACHE.pop(cache_key, None)
+
         if context:
-            user_prompt = (
-                f"Información verídica de referencia:\n{context}\n\n"
-                f"Pregunta del usuario: {prompt_text}\n"
-                "Instrucción: Responde en 1 o 2 oraciones breves y completas basadas en la referencia. Termina con punto."
-            )
+            if is_public_directory:
+                user_prompt = (
+                    f"Datos oficiales del Directorio Comunitario de Playa Rica:\n{context}\n\n"
+                    f"Consulta del vecino: {prompt_text}\n"
+                    "Instrucción: Responde en 1 o 2 oraciones breves incluyendo exactamente los teléfonos, "
+                    "horarios o nombres que aparecen en los datos oficiales. Termina con punto final."
+                )
+            else:
+                user_prompt = (
+                    f"Información verídica de referencia:\n{context}\n\n"
+                    f"Pregunta del usuario: {prompt_text}\n"
+                    "Instrucción: Responde en 1 o 2 oraciones breves y completas basadas en la referencia. Termina con punto."
+                )
         else:
             user_prompt = (
                 f"{prompt_text}\n"
                 "(Responde en 1 o 2 oraciones breves y completas, terminando siempre con punto final)."
             )
 
+        sys_prompt = PUBLIC_DIRECTORY_SYSTEM_PROMPT if is_public_directory else SYSTEM_PROMPT
+
         logger.info(f"Consultando AI ({self.model})...")
         payload = {
             "model": self.model,
-            "system": SYSTEM_PROMPT,
+            "system": sys_prompt,
             "prompt": user_prompt,
             "stream": False,
             "options": {
                 "num_predict": 95,
-                "temperature": 0.35,
+                "temperature": 0.25 if is_public_directory else 0.35,
             },
         }
         try:
-            r = requests.post(
-                self.ollama_url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=25,
-            )
+            with _NPU_LOCK:
+                r = requests.post(
+                    self.ollama_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=95,
+                )
             if r.status_code == 200:
                 data = r.json()
                 raw_reply = data.get("response", "").strip()
-                return clean_text(raw_reply)
+                cleaned = clean_text(raw_reply)
+                if cleaned and use_cache:
+                    if len(_LLM_CACHE) >= _LLM_CACHE_MAX_SIZE:
+                        oldest_k = min(_LLM_CACHE, key=lambda k: _LLM_CACHE[k][0])
+                        _LLM_CACHE.pop(oldest_k, None)
+                    _LLM_CACHE[cache_key] = (time.time(), cleaned)
+                return cleaned
             logger.error(f"Error HTTP {r.status_code} desde Ollama: {r.text}")
             return "Error temporal en el motor de IA."
         except Exception as e:
@@ -90,12 +141,13 @@ class LLMService:
         }
         llm_reading = ""
         try:
-            r = requests.post(
-                self.ollama_url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=20,
-            )
+            with _NPU_LOCK:
+                r = requests.post(
+                    self.ollama_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=95,
+                )
             if r.status_code == 200:
                 raw_reply = r.json().get("response", "").strip()
                 cleaned = clean_text(raw_reply)
@@ -117,3 +169,4 @@ class LLMService:
             llm_reading = trim_to_complete_sentences(rural_brief, 185)
 
         return f"🌾 Campo: {llm_reading}"
+

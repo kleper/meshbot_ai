@@ -1,0 +1,125 @@
+<section class="card card-narrow" data-active-tab="agregar">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">
+        {% if edit_item %}
+          ✏️ Editar Ficha Local #{{ edit_item.id }}
+        {% else %}
+          ➕ Agregar Nuevo Contenido Local
+        {% endif %}
+      </h2>
+      <p class="card-subtitle">
+        Registra teléfonos de vecinos, horarios de chiva, emergencias o avisos de la vereda Playa Rica.
+      </p>
+    </div>
+    <a href="/ui/directorio"
+       hx-get="/ui/directorio"
+       hx-target="#tab-content"
+       hx-push-url="true"
+       class="btn btn-secondary btn-sm">
+      ← Volver al Directorio
+    </a>
+  </div>
+
+  <form action="/ui/kb"
+        method="POST"
+        hx-post="/ui/kb"
+        hx-target="#tab-content"
+        hx-push-url="/ui/directorio">
+    <input type="hidden" name="item_id" value="{{ edit_item.id if edit_item else '' }}" />
+
+    <fieldset>
+      <legend>Categoría</legend>
+      {% set current_cat = edit_item.categoria if edit_item else 'directorio' %}
+      <div class="radio-group">
+        <label class="radio-pill">
+          <input type="radio" name="categoria" value="transporte" {% if current_cat == 'transporte' %}checked{% endif %} />
+          <span>🚌 Transporte</span>
+        </label>
+        <label class="radio-pill">
+          <input type="radio" name="categoria" value="directorio" {% if current_cat == 'directorio' %}checked{% endif %} />
+          <span>📇 Directorio</span>
+        </label>
+        <label class="radio-pill">
+          <input type="radio" name="categoria" value="emergencias" {% if current_cat == 'emergencias' %}checked{% endif %} />
+          <span>🚨 Emergencia</span>
+        </label>
+        <label class="radio-pill">
+          <input type="radio" name="categoria" value="avisos" {% if current_cat == 'avisos' %}checked{% endif %} />
+          <span>📢 Avisos</span>
+        </label>
+        <label class="radio-pill">
+          <input type="radio" name="categoria" value="agro" {% if current_cat == 'agro' %}checked{% endif %} />
+          <span>🌾 Agro</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <label for="titulo">Título corto (Vecino, Servicio u Horario)</label>
+      <input
+        type="text"
+        id="titulo"
+        name="titulo"
+        value="{{ edit_item.titulo if edit_item else '' }}"
+        placeholder="Ej: Don Pedro - Chiva Playa Rica"
+        required
+        maxlength="120"
+      />
+    </fieldset>
+
+    <fieldset>
+      <label for="respuesta">Información / Respuesta para la red LoRa</label>
+      <textarea
+        id="respuesta"
+        name="respuesta"
+        placeholder="Ej: Sale de Playa Rica a las 6:00 AM y 1:00 PM. Celular: 310-555-1234."
+        required
+        maxlength="550"
+      >{{ edit_item.respuesta if edit_item else '' }}</textarea>
+      <div class="field-hint">
+        <span>Respuesta instantánea (&lt;2ms) sin consumir NPU</span>
+        <span class="byte-badge" id="byte-counter">0 / 228 bytes (1 paq LoRa)</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <label for="keywords">Palabras clave / Sinónimos (Opcional, se autogeneran)</label>
+      <input
+        type="text"
+        id="keywords"
+        name="keywords"
+        value="{{ edit_item.keywords if edit_item else '' }}"
+        placeholder="Ej: chiva escalera bus transporte pedro horario"
+        maxlength="200"
+      />
+    </fieldset>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary" style="flex: 1;">
+        {% if edit_item %}
+          💾 Guardar Cambios en Ficha #{{ edit_item.id }}
+        {% else %}
+          💾 Guardar en Conocimiento Local
+        {% endif %}
+      </button>
+      <a href="/ui/directorio"
+         hx-get="/ui/directorio"
+         hx-target="#tab-content"
+         hx-push-url="true"
+         class="btn btn-secondary">
+        Cancelar
+      </a>
+    </div>
+  </form>
+
+  <div class="lora-box">
+    <h3>📻 También puedes agregar fichas directamente desde tu radio Meshtastic:</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 0.3rem;">
+      Envía cualquiera de estos comandos en el canal <strong>PlayaRica</strong>:
+    </p>
+    <code>!guardar Moto Don Luis: Cel 3112223344 hace expresos a San Roque</code>
+    <code>!guardar [avisos] Convite JAC: Domingo 8am arreglo vía escuela</code>
+    <code>!info chiva &nbsp;|&nbsp; !directorio pedro &nbsp;|&nbsp; !borrar_info 4</code>
+  </div>
+</section>

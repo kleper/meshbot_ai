@@ -1,0 +1,77 @@
+<section class="card card-narrow" data-active-tab="simulador">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">🧪 Simulador de Consultas y Comandos LoRa</h2>
+      <p class="card-subtitle">
+        Prueba cómo responderá el bot ante preguntas en lenguaje natural o comandos (!info, !clima, !guardar) sin gastar tiempo de aire RF.
+      </p>
+    </div>
+  </div>
+
+  <form action="/ui/simulate"
+        method="POST"
+        hx-post="/ui/simulate"
+        hx-target="#sim-result-box"
+        hx-indicator="#sim-spinner">
+    <fieldset>
+      <label for="sim-input">Mensaje o comando a probar</label>
+      <input
+        type="text"
+        id="sim-input"
+        name="text"
+        value="{{ initial_query }}"
+        placeholder="Ej: ¿A qué hora sale la chiva para San Roque? o !clima Playa Rica"
+        required
+      />
+    </fieldset>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary">
+        ⚡ Simular Respuesta
+      </button>
+      <span id="sim-spinner" class="htmx-indicator" style="align-self: center; font-size: 0.84rem; color: var(--blue);">
+        ⏳ Procesando consulta...
+      </span>
+    </div>
+  </form>
+
+  <div id="sim-result-box" style="margin-top: 1rem;">
+    {% if sim_result %}
+      {% include "partials/sim_result.html" %}
+    {% endif %}
+  </div>
+
+  <div class="lora-box" style="margin-top: 1.5rem;">
+    <h3>💡 Ejemplos rápidos para probar con un clic:</h3>
+    <div class="kb-actions" style="margin-top: 0.5rem;">
+      <button type="button"
+              class="btn btn-secondary btn-sm"
+              hx-post="/ui/simulate"
+              hx-vals='{"text": "¿A qué hora sale la chiva para San Roque?"}'
+              hx-target="#sim-result-box">
+        🚌 ¿A qué hora sale la chiva?
+      </button>
+      <button type="button"
+              class="btn btn-secondary btn-sm"
+              hx-post="/ui/simulate"
+              hx-vals='{"text": "!info emergencias"}'
+              hx-target="#sim-result-box">
+        🚨 !info emergencias
+      </button>
+      <button type="button"
+              class="btn btn-secondary btn-sm"
+              hx-post="/ui/simulate"
+              hx-vals='{"text": "!info"}'
+              hx-target="#sim-result-box">
+        📋 Listar Directorio (!info)
+      </button>
+      <button type="button"
+              class="btn btn-secondary btn-sm"
+              hx-post="/ui/simulate"
+              hx-vals='{"text": "!nodos"}'
+              hx-target="#sim-result-box">
+        📡 Estado de Nodos (!nodos)
+      </button>
+    </div>
+  </div>
+</section>

@@ -8,8 +8,9 @@ from app.config import DEFAULT_MAX_PARTS, MAX_CHARS, MAX_PACKET_BYTES, PACKET_SE
 
 
 def clean_text(text: str) -> str:
-    """Limpia el texto de formato Markdown, comillas y saltos para radio LoRa."""
-    t = text.strip()
+    """Limpia el texto de bloques <think>, formato Markdown, comillas y saltos para radio LoRa."""
+    t = re.sub(r"<think>.*?</think>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+    t = re.sub(r"</?think>", " ", t, flags=re.IGNORECASE).strip()
     t = t.replace("\n", " ").replace("\r", " ")
     t = t.replace('"', "").replace("'", "").replace("*", "").replace("#", "")
     t = re.sub(r"https?://\S+", "", t)

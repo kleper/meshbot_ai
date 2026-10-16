@@ -1,0 +1,17 @@
+<div style="background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem;">
+    <span>Entrada: <strong style="color: var(--text);">{{ sim_result.input }}</strong></span>
+    <span>
+      Latencia: <strong style="color: var(--accent);">{{ sim_result.latency_ms }} ms</strong>
+      &nbsp;·&nbsp;
+      Paquetes LoRa: <strong>{{ sim_result.packet_count }}</strong>
+    </span>
+  </div>
+
+  {% for pkt in sim_result.packets %}
+    <div class="pkt-box">
+      <strong>Paquete {{ loop.index }}/{{ sim_result.packet_count }} ({{ sim_result.packet_bytes[loop.index0] }} bytes UTF-8):</strong><br />
+      {{ pkt }}
+    </div>
+  {% endfor %}
+</div>

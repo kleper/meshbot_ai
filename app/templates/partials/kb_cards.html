@@ -1,0 +1,59 @@
+{% if not items %}
+  <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+    <p style="margin-bottom: 0.75rem;">No se encontraron fichas para esta búsqueda.</p>
+    <a href="/ui/agregar"
+       hx-get="/ui/agregar"
+       hx-target="#tab-content"
+       hx-push-url="true"
+       class="btn btn-primary btn-sm">
+      ➕ Agregar este contenido ahora
+    </a>
+  </div>
+{% else %}
+  <div class="kb-grid">
+    {% for item in items %}
+      <article class="kb-item">
+        <div>
+          <div class="kb-header">
+            <span class="kb-badge">
+              {{ category_labels.get(item.categoria, item.categoria) }}
+            </span>
+            <span class="kb-id">ID #{{ item.id }}</span>
+          </div>
+          <h3 class="kb-title">{{ item.titulo }}</h3>
+          <p class="kb-resp">{{ item.respuesta }}</p>
+        </div>
+
+        <div>
+          <div class="kb-meta">
+            <span>🔑 {{ (item.keywords or '').split()[:6] | join(', ') }}</span>
+            <span>👤 {{ item.autor or 'local' }}</span>
+          </div>
+          <div class="kb-actions">
+            <a href="/ui/agregar?edit_id={{ item.id }}"
+               hx-get="/ui/agregar?edit_id={{ item.id }}"
+               hx-target="#tab-content"
+               hx-push-url="true"
+               class="btn btn-secondary btn-sm">
+              ✏️ Editar
+            </a>
+            <a href="/ui/simulador?q=!info {{ item.titulo | urlencode }}"
+               hx-get="/ui/simulador?q=!info {{ item.titulo | urlencode }}"
+               hx-target="#tab-content"
+               hx-push-url="true"
+               class="btn btn-secondary btn-sm">
+              🧪 Probar en Bot
+            </a>
+            <button type="button"
+                    class="btn btn-danger btn-sm"
+                    hx-delete="/ui/kb/{{ item.id }}"
+                    hx-target="#kb-cards-container"
+                    hx-confirm="¿Seguro que deseas eliminar la ficha #{{ item.id }} ({{ item.titulo }})?">
+              🗑️ Borrar
+            </button>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}

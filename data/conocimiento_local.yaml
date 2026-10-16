@@ -1,0 +1,41 @@
+- categoria: transporte
+  titulo: Chiva Escalera Playa Rica - San Roque
+  keywords: chiva escalera bus transporte horario san roque playa rica pasaje
+  respuesta: "🚌 Chiva Playa Rica-San Roque: Sale de Playa Rica a las 6:00 AM y 1:00 PM. Regresa desde el parque de San Roque a las 10:00 AM y 4:00 PM."
+  autor: sistema
+
+- categoria: transporte
+  titulo: Transporte y Expresos hacia Cisneros y Medellín
+  keywords: bus flota cisneros medellin sotrasanroque transporte pasaje
+  respuesta: "🚐 Desde San Roque y vía Cisneros salen buses hacia Medellín cada hora entre 5:00 AM y 6:00 PM. Para expresos o acarreos en la vereda consultar en la caseta comunal."
+  autor: sistema
+
+- categoria: emergencias
+  titulo: Emergencias Bomberos y Policía San Roque
+  keywords: bomberos policia emergencia urgencia rescate incendio accidente telefono numero
+  respuesta: "🚨 Emergencias San Roque: Bomberos Voluntarios y Línea de Emergencia 123 / Estación de Policía San Roque. En la red LoRa reporta tu ubicación con !gps."
+  autor: sistema
+
+- categoria: emergencias
+  titulo: Hospital y Puesto de Salud San Roque
+  keywords: hospital medico salud urgencias ambulancia enfermera cita odontologia
+  respuesta: "🏥 E.S.E. Hospital Municipal San Roque: Atención de urgencias 24 horas en el casco urbano. En Playa Rica consultar jornadas médicas en la Junta de Acción Comunal."
+  autor: sistema
+
+- categoria: emergencias
+  titulo: Daños de Energía EPM y Acueducto Veredal
+  keywords: luz energia epm apagon poste transformador agua acueducto fontanero daño
+  respuesta: "⚡ Daños de energía EPM: Línea gratuita 018000-415-115 o (604) 444-4115. Para cortes de agua del acueducto veredal de Playa Rica, avisar al fontanero de la Junta."
+  autor: sistema
+
+- categoria: directorio
+  titulo: Junta de Acción Comunal (JAC) Playa Rica
+  keywords: junta jac accion comunal presidente reunion convite caseta vereda
+  respuesta: "🤝 Junta de Acción Comunal Playa Rica: Reuniones ordinarias el primer domingo del mes en la caseta comunal. Avisos de convites se publican por este canal LoRa."
+  autor: sistema
+
+- categoria: agro
+  titulo: Recomendaciones para Café, Caña y Trapiches en Playa Rica
+  keywords: cafe cana panela trapiche abono secado lluvia cultivo
+  respuesta: "🌾 Agro Playa Rica: Antes de cortar caña, abonar o sacar café al secadero, consulta !clima Playa Rica para ver la probabilidad de lluvia por horas y el consejo de campo."
+  autor: sistema
