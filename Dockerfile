@@ -2,7 +2,8 @@ FROM python:3.12-slim
 
 # Evitar buffers en logs y archivos temporales .pyc
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    TZ=America/Bogota
 
 WORKDIR /app
 
@@ -16,10 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código del bot
+# Copiar el código modular del bot y pruebas
+COPY app/ ./app/
+COPY tests/ ./tests/
 COPY bot.py .
 
-# Zona horaria por defecto
-ENV TZ=America/Bogota
+EXPOSE 8002
+
+# Healthcheck nativo contra el servidor FastAPI integrado
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8002/health || exit 1
 
 CMD ["python3", "bot.py"]
