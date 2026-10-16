@@ -347,12 +347,80 @@ def _summarize_period(
     return f"{cond} {t_str} ({max_prob}%{rain_lbl})"
 
 
-def fetch_weather_by_coords(lat: float, lon: float, label: str) -> str:
+def _build_rural_weather_brief(
+    d_min: int,
+    d_max: int,
+    app_temp: int,
+    uv: int,
+    d_prob: int,
+    d_mm: float,
+    periods_data: list[tuple[str, list[float], list[int], list[float], list[int]]],
+) -> str:
     """
-    Consulta Open-Meteo para (lat, lon) y construye un reporte meteorológico completo en 2 partes:
-    - Parte 1: Clima actual (condición, temp, sensación térmica, mín/máx, humedad, viento, UV, lluvia hoy)
-               + pronóstico de las próximas horas.
-    - Parte 2: Pronóstico detallado por periodos (Mañana, Tarde y Noche) + resumen del día siguiente.
+    Construye una síntesis en lenguaje cotidiano del clima del día (frío/calor, lluvias por jornada
+    y consejo práctico para labores del campo) para alimentar al LLM y garantizar precisión rural.
+    """
+    # 1. Sensación térmica del día y de la noche/madrugada
+    if d_max >= 30 or app_temp >= 30:
+        heat_str = f"hará mucho calor y bochorno fuerte al mediodía (hasta {d_max}°C)"
+    elif d_max >= 25 or app_temp >= 26:
+        heat_str = f"hará calor bochornoso al mediodía ({d_max}°C)"
+    elif d_max >= 20:
+        heat_str = f"el clima estará templado y agradable en el día ({d_max}°C)"
+    else:
+        heat_str = f"hará frío durante el día (máximo {d_max}°C)"
+
+    if d_min <= 13:
+        cold_str = f"con bastante frío en la madrugada y noche ({d_min}°C)"
+    elif d_min <= 19:
+        cold_str = f"y fresco en la noche y madrugada ({d_min}°C)"
+    else:
+        cold_str = f"y noche templada ({d_min}°C)"
+
+    # 2. Análisis de lluvia por jornada (Mañana, Tarde, Noche)
+    heavy_periods = []
+    light_periods = []
+    for p_name, _, probs, mms, codes in periods_data:
+        p_prob = max(probs) if probs else 0
+        p_mm = sum(mms) if mms else 0.0
+        p_code = max(codes) if codes else 0
+        clean_name = p_name.lower().replace("(sig)", " siguiente")
+        if p_code >= 80 or p_mm >= 3.5 or (p_prob >= 80 and p_mm >= 1.5):
+            heavy_periods.append(clean_name)
+        elif p_prob >= 45 or p_mm >= 0.4 or p_code >= 51:
+            light_periods.append(clean_name)
+
+    if heavy_periods and light_periods:
+        rain_str = (
+            f"Habrá llovizna suave en {', '.join(light_periods)} "
+            f"y caerá aguacero fuerte o tormenta en {', '.join(heavy_periods)}."
+        )
+    elif heavy_periods:
+        rain_str = f"Se espera aguacero fuerte o tormenta en {', '.join(heavy_periods)}."
+    elif light_periods:
+        rain_str = f"Habrá lluvias o lloviznas suaves en {', '.join(light_periods)}."
+    else:
+        rain_str = "No se esperan lluvias importantes hoy, predominará el tiempo seco."
+
+    # 3. Consejo práctico para trabajadores del campo
+    if heavy_periods:
+        advice_str = "Lleve poncho o carpa y resguarde animales, cosecha y herramientas antes del aguacero."
+    elif light_periods:
+        advice_str = "Lleve impermeable al trabajo de campo y proteja cargas, abonos o café de la humedad."
+    elif d_max >= 28 or uv >= 7:
+        advice_str = "Aproveche el tiempo seco para labores y secado, hidrátese bien y cúbrase del sol fuerte."
+    else:
+        advice_str = "Buen tiempo para trabajar tranquilo en el campo, siembra y mantenimiento de cultivos."
+
+    return f"Hoy {heat_str} {cold_str}. {rain_str} {advice_str}"
+
+
+def fetch_weather_bundle(lat: float, lon: float, label: str) -> tuple[str, str, str]:
+    """
+    Consulta Open-Meteo para (lat, lon) y devuelve (part1, part2, rural_brief):
+    - part1: Clima actual + pronóstico próximas horas.
+    - part2: Pronóstico detallado para Mañana, Tarde, Noche y Día siguiente.
+    - rural_brief: Síntesis para trabajadores del campo lista para pasar por el LLM.
     """
     try:
         url = "https://api.open-meteo.com/v1/forecast"
@@ -373,7 +441,7 @@ def fetch_weather_by_coords(lat: float, lon: float, label: str) -> str:
         }
         r = requests.get(url, params=params, timeout=7)
         if r.status_code != 200:
-            return ""
+            return "", "", ""
         data = r.json()
         cur = data.get("current", {})
         daily = data.get("daily", {})
@@ -419,7 +487,7 @@ def fetch_weather_by_coords(lat: float, lon: float, label: str) -> str:
                 p_val = round(h_probs[idx]) if idx < len(h_probs) and h_probs[idx] is not None else 0
                 next_slots.append(f"{hh}h:{t_val}°C({p_val}%)")
 
-        max_body_bytes = MAX_PACKET_BYTES - len(f"{PREFIX}[1/2] ".encode("utf-8"))
+        max_body_bytes = MAX_PACKET_BYTES - len(f"{PREFIX}[1/3] ".encode("utf-8"))
         base_p1 = (
             f"🌦 {label}: {cond_now} {temp}°C (ST:{app_temp}°C) "
             f"Min:{d_min}°/Max:{d_max}°C Hum:{hum}% Viento:{w_spd}km/h {w_dir} "
@@ -445,14 +513,18 @@ def fetch_weather_by_coords(lat: float, lon: float, label: str) -> str:
                 ("Noche", slice(18, 24)),
             ]
 
+        periods_data = []
+        for p_name, sl in periods_order:
+            periods_data.append((p_name, h_temps[sl], h_probs[sl], h_mms[sl], h_codes[sl]))
+
         def _build_part2(compact_mode: bool, include_tomorrow: bool) -> str:
             p_list = []
-            for p_name, sl in periods_order:
+            for p_name, p_t, p_p, p_m, p_c in periods_data:
                 p_sum = _summarize_period(
-                    h_temps[sl],
-                    h_probs[sl],
-                    h_mms[sl],
-                    h_codes[sl],
+                    p_t,
+                    p_p,
+                    p_m,
+                    p_c,
                     compact=compact_mode,
                 )
                 p_list.append(f"{p_name}: {p_sum}")
@@ -471,11 +543,29 @@ def fetch_weather_by_coords(lat: float, lon: float, label: str) -> str:
         if len(part2.encode("utf-8")) > max_body_bytes:
             part2 = _build_part2(compact_mode=True, include_tomorrow=False)
 
-        return f"{part1} {part2}"
+        rural_brief = _build_rural_weather_brief(
+            d_min=d_min,
+            d_max=d_max,
+            app_temp=app_temp,
+            uv=uv,
+            d_prob=d_prob,
+            d_mm=d_mm,
+            periods_data=periods_data,
+        )
+
+        return part1, part2, rural_brief
 
     except Exception as e:
         logger.warning(f"Error consultando Open-Meteo para {label} ({lat},{lon}): {e}")
-        return ""
+        return "", "", ""
+
+
+def fetch_weather_by_coords(lat: float, lon: float, label: str) -> str:
+    """Compatibilidad directa: devuelve part1 y part2 unidos."""
+    p1, p2, _ = fetch_weather_bundle(lat, lon, label)
+    if p1 and p2:
+        return f"{p1} {p2}"
+    return ""
 
 
 def fetch_weather(
@@ -614,9 +704,9 @@ def split_into_packets(
 ) -> list[str]:
     """
     Divide un texto en paquetes seguros para LoRa Meshtastic (<= max_packet_bytes en UTF-8).
+    Si contiene bloques separados por PACKET_SEP ('||PKT||'), asigna cada bloque a su propio paquete.
     Si cabe en 1 paquete, lo devuelve tal cual con prefijo.
-    Si excede el límite y max_parts > 1, divide en oraciones completas numeradas ([1/2], [2/2]).
-    Si max_parts == 1, recorta al límite estricto del primer paquete cerrado con punto.
+    Si excede el límite y max_parts > 1, divide en oraciones completas numeradas ([1/N], [2/N]).
     """
     clean = " ".join(text.strip().split())
     if not clean:
@@ -624,6 +714,26 @@ def split_into_packets(
 
     if clean.startswith(PREFIX):
         clean = clean[len(PREFIX):].strip()
+
+    # 0. Si el texto trae bloques explícitos separados por PACKET_SEP (ej. Clima [1/3], [2/3], [3/3])
+    if PACKET_SEP in clean:
+        parts = [b.strip() for b in clean.split(PACKET_SEP) if b.strip()][:max_parts]
+        total = len(parts)
+        formatted = []
+        for i, p in enumerate(parts, 1):
+            p_clean = p.strip()
+            if not p_clean.endswith((".", "!", "?")):
+                p_clean = p_clean.rstrip(" ,;:-¿¡") + "."
+            hdr = f"{PREFIX}[{i}/{total}] " if total > 1 else PREFIX
+            pkt = f"{hdr}{p_clean}"
+            while len(pkt.encode("utf-8")) > max_packet_bytes:
+                last_sp = p_clean.rfind(" ")
+                if last_sp == -1:
+                    break
+                p_clean = p_clean[:last_sp].rstrip(" ,;:-¿¡") + "."
+                pkt = f"{hdr}{p_clean}"
+            formatted.append(pkt)
+        return formatted
 
     # 1. Si cabe en un solo paquete con prefijo normal
     single_msg = f"{PREFIX}{clean}"
@@ -803,7 +913,11 @@ class MeshtasticAIBot:
         return t
 
     def format_output(self, reply: str) -> str:
-        """Limpia y garantiza oraciones completas bajo max_chars."""
+        """Limpia y garantiza oraciones completas bajo max_chars o por bloque PACKET_SEP."""
+        if PACKET_SEP in reply:
+            blocks = [self.clean_text(b) for b in reply.split(PACKET_SEP) if b.strip()]
+            trimmed_blocks = [trim_to_complete_sentences(b, 205) for b in blocks if b]
+            return f" {PACKET_SEP} ".join(trimmed_blocks)
         cleaned = self.clean_text(reply)
         available_chars = self.max_chars - len(PREFIX)
         return trim_to_complete_sentences(cleaned, available_chars)
@@ -1166,10 +1280,75 @@ class MeshtasticAIBot:
         """Obtiene estadísticas y telemetría de los nodos locales en la malla LoRa."""
         return self.get_mesh_telemetry_summary()
 
+    def generate_field_weather_reading(self, rural_brief: str) -> str:
+        """
+        Pasa los datos meteorológicos por el LLM local (Hailo-Ollama) para generar una lectura
+        en lenguaje sencillo y útil para personas que trabajan en el campo (calor/frío, lluvia y consejo).
+        """
+        prompt = (
+            f"Datos del clima de hoy:\n{rural_brief}\n\n"
+            "Instrucción: Explica este clima en lenguaje muy sencillo para un trabajador del campo "
+            "en máximo 25 palabras (1 o 2 oraciones cortas), diciendo si hará frío o calor, si va a llover "
+            "y qué cuidado tener en el campo. Empieza directo sin introducciones y termina con punto."
+        )
+        logger.info(f"Consultando AI ({self.model}) para lectura rural del clima...")
+        payload = {
+            "model": self.model,
+            "system": (
+                "Eres un asistente rural para campesinos y trabajadores del campo. "
+                "Habla claro, sencillo y directo en español. Sin tecnicismos. "
+                "Máximo 25 palabras en total, terminando siempre con punto final."
+            ),
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": 58,
+                "temperature": 0.25,
+            },
+        }
+        llm_reading = ""
+        try:
+            r = requests.post(
+                self.ollama_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=20,
+            )
+            if r.status_code == 200:
+                raw_reply = r.json().get("response", "").strip()
+                cleaned = self.clean_text(raw_reply)
+                # Quitar muletillas introductorias para aprovechar al máximo el paquete LoRa
+                cleaned = re.sub(
+                    r"^(?:según la información|segun la informacion|según los datos|segun los datos|"
+                    r"basándome en los datos|de acuerdo con los datos|en resumen|resumen para el campo)"
+                    r"[\s,:;-]*",
+                    "",
+                    cleaned,
+                    flags=re.IGNORECASE,
+                ).strip()
+                if cleaned:
+                    cleaned = cleaned[0].upper() + cleaned[1:]
+                    llm_reading = trim_to_complete_sentences(cleaned, 185)
+        except Exception as e:
+            logger.warning(f"No se pudo obtener lectura rural desde LLM, usando síntesis directa: {e}")
+
+        if not llm_reading or len(llm_reading) < 20:
+            llm_reading = trim_to_complete_sentences(rural_brief, 185)
+
+        return f"🌾 Campo: {llm_reading}"
+
+    def _build_full_weather_packets(self, lat: float, lon: float, label: str) -> str:
+        """Construye los 3 bloques de clima: [1/3] Actual+Horas, [2/3] Mañana/Tarde/Noche, [3/3] Lectura Campo LLM."""
+        part1, part2, rural_brief = fetch_weather_bundle(lat, lon, label)
+        if not part1 or not part2:
+            return ""
+        part3 = self.generate_field_weather_reading(rural_brief)
+        return f"{part1} {PACKET_SEP} {part2} {PACKET_SEP} {part3}"
+
     def get_weather_response(self, target: str = "", sender_id: str = "", sender_num: int = None) -> str:
         """
         Obtiene el reporte meteorológico y pronóstico extendido (próximas horas + Mañana, Tarde y Noche)
-        para una zona/ciudad/corregimiento o para las coordenadas GPS de un nodo de la malla.
+        más la interpretación en lenguaje sencillo para el campo generada con el LLM.
         """
         clean_target = clean_location_query(target)
         loc_lat, loc_lon = self.get_local_coordinates()
@@ -1184,7 +1363,7 @@ class MeshtasticAIBot:
             n_lon = pos.get("longitude") or (pos.get("longitudeI", 0) * 1e-7 if "longitudeI" in pos else None)
             if n_lat and n_lon and (n_lat != 0 or n_lon != 0):
                 short_name = node.get("user", {}).get("shortName") or label
-                w = fetch_weather_by_coords(float(n_lat), float(n_lon), f"Nodo {short_name}")
+                w = self._build_full_weather_packets(float(n_lat), float(n_lon), f"Nodo {short_name}")
                 if w:
                     return w
 
@@ -1197,15 +1376,21 @@ class MeshtasticAIBot:
                 n_lon = pos.get("longitude") or (pos.get("longitudeI", 0) * 1e-7 if "longitudeI" in pos else None)
                 if n_lat and n_lon and (n_lat != 0 or n_lon != 0):
                     short_name = node.get("user", {}).get("shortName") or clean_target
-                    w = fetch_weather_by_coords(float(n_lat), float(n_lon), f"Nodo {short_name}")
+                    w = self._build_full_weather_packets(float(n_lat), float(n_lon), f"Nodo {short_name}")
                     if w:
                         return w
 
         # 3. Búsqueda geográfica por nombre de zona/corregimiento/municipio (ej. San Roque Antioquia Playa Rica)
         query_loc = clean_target or DEFAULT_LOCATION
-        w = fetch_weather(query_loc, ref_lat=ref_lat, ref_lon=ref_lon)
-        if w:
-            return w
+        lat, lon, label = geocode_location(query_loc, ref_lat=ref_lat, ref_lon=ref_lon)
+        if lat is not None and lon is not None:
+            w = self._build_full_weather_packets(lat, lon, label)
+            if w:
+                return w
+
+        w_fallback = fetch_weather(query_loc, ref_lat=ref_lat, ref_lon=ref_lon)
+        if w_fallback:
+            return w_fallback
         return f"No se pudo obtener el pronóstico del clima para {query_loc}."
 
     def process_message(self, text: str, sender_id: str = "", sender_num: int = None) -> str:
