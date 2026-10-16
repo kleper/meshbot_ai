@@ -1,0 +1,14 @@
+services:
+  meshtastic-bot:
+    build: .
+    image: meshtastic-ai-bot:latest
+    container_name: meshtastic-ai-bot
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
