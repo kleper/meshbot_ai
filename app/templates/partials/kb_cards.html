@@ -1,12 +1,23 @@
 {% if not items %}
-  <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
-    <p style="margin-bottom: 0.75rem;">No se encontraron fichas para esta búsqueda.</p>
+  <div class="empty-state">
+    <div class="empty-state-icon" aria-hidden="true">
+      <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <line x1="8" y1="11" x2="14" y2="11" />
+      </svg>
+    </div>
+    <p class="empty-state-text">No se encontraron fichas para esta búsqueda en la base local.</p>
     <a href="/ui/agregar"
        hx-get="/ui/agregar"
        hx-target="#tab-content"
        hx-push-url="true"
        class="btn btn-primary btn-sm">
-      ➕ Agregar este contenido ahora
+      <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      <span>Agregar este contenido ahora</span>
     </a>
   </div>
 {% else %}
@@ -15,7 +26,7 @@
       <article class="kb-item">
         <div>
           <div class="kb-header">
-            <span class="kb-badge">
+            <span class="kb-badge kb-badge--{{ item.categoria }}">
               {{ category_labels.get(item.categoria, item.categoria) }}
             </span>
             <span class="kb-id">ID #{{ item.id }}</span>
@@ -26,8 +37,20 @@
 
         <div>
           <div class="kb-meta">
-            <span>🔑 {{ (item.keywords or '').split()[:6] | join(', ') }}</span>
-            <span>👤 {{ item.autor or 'local' }}</span>
+            <span class="kb-meta-item" title="Palabras clave indexadas en FTS5">
+              <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
+              </svg>
+              <span>{{ (item.keywords or '').split()[:6] | join(', ') }}</span>
+            </span>
+            <span class="kb-meta-item" title="Origen del registro">
+              <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>{{ item.autor or 'local' }}</span>
+            </span>
           </div>
           <div class="kb-actions">
             <a href="/ui/agregar?edit_id={{ item.id }}"
@@ -35,21 +58,34 @@
                hx-target="#tab-content"
                hx-push-url="true"
                class="btn btn-secondary btn-sm">
-              ✏️ Editar
+              <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              <span>Editar</span>
             </a>
             <a href="/ui/simulador?q=!info {{ item.titulo | urlencode }}"
                hx-get="/ui/simulador?q=!info {{ item.titulo | urlencode }}"
                hx-target="#tab-content"
                hx-push-url="true"
                class="btn btn-secondary btn-sm">
-              🧪 Probar en Bot
+              <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="4 17 10 11 4 5" />
+                <line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
+              <span>Probar en Bot</span>
             </a>
             <button type="button"
                     class="btn btn-danger btn-sm"
                     hx-delete="/ui/kb/{{ item.id }}"
                     hx-target="#kb-cards-container"
+                    hx-disabled-elt="this"
                     hx-confirm="¿Seguro que deseas eliminar la ficha #{{ item.id }} ({{ item.titulo }})?">
-              🗑️ Borrar
+              <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>Borrar</span>
             </button>
           </div>
         </div>

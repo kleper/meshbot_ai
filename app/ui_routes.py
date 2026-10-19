@@ -20,11 +20,11 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templa
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 CATEGORY_LABELS = {
-    "transporte": "🚌 Transporte",
-    "directorio": "📇 Directorio",
-    "emergencias": "🚨 Emergencias",
-    "avisos": "📢 Avisos",
-    "agro": "🌾 Agro",
+    "transporte": "Transporte",
+    "directorio": "Directorio",
+    "emergencias": "Emergencias",
+    "avisos": "Avisos",
+    "agro": "Agro",
 }
 
 
@@ -163,7 +163,7 @@ def create_ui_router(bot: MeshtasticAIBot) -> APIRouter:
             item_id=parsed_id,
         )
         items = bot.knowledge.list_items()
-        flash_msg = f"✅ Ficha #{saved['id']} ({saved['titulo']}) guardada correctamente."
+        flash_msg = f"Ficha #{saved['id']} ({saved['titulo']}) guardada correctamente."
         return _render_tab_or_full(
             request,
             active_tab="directorio",

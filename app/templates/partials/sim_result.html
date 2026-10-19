@@ -1,17 +1,20 @@
-<div style="background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
-  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem;">
-    <span>Entrada: <strong style="color: var(--text);">{{ sim_result.input }}</strong></span>
-    <span>
-      Latencia: <strong style="color: var(--accent);">{{ sim_result.latency_ms }} ms</strong>
-      &nbsp;·&nbsp;
-      Paquetes LoRa: <strong>{{ sim_result.packet_count }}</strong>
+<div class="sim-telemetry-panel">
+  <div class="sim-telemetry-header">
+    <span>Entrada: <strong class="sim-telemetry-input">{{ sim_result.input }}</strong></span>
+    <span class="sim-telemetry-metrics">
+      <span>Latencia: <strong class="sim-metric-accent">{{ sim_result.latency_ms }} ms</strong></span>
+      <span aria-hidden="true">·</span>
+      <span>Paquetes LoRa: <strong class="sim-metric-val">{{ sim_result.packet_count }}</strong></span>
     </span>
   </div>
 
   {% for pkt in sim_result.packets %}
     <div class="pkt-box">
-      <strong>Paquete {{ loop.index }}/{{ sim_result.packet_count }} ({{ sim_result.packet_bytes[loop.index0] }} bytes UTF-8):</strong><br />
-      {{ pkt }}
+      <div class="pkt-header">
+        <span class="pkt-index">Paquete {{ loop.index }}/{{ sim_result.packet_count }}</span>
+        <span class="pkt-bytes">{{ sim_result.packet_bytes[loop.index0] }} / 228 bytes UTF-8</span>
+      </div>
+      <div class="pkt-payload">{{ pkt }}</div>
     </div>
   {% endfor %}
 </div>

@@ -1,13 +1,14 @@
 /**
  * Helpers ligeros progresivos para HTMX:
  * 1. Contador en vivo de bytes UTF-8 para paquetes LoRa Meshtastic (<= 228 bytes)
- * 2. Sincronización de pestaña activa (nav-tab) y chips de categoría
+ * 2. Sincronización de pestaña activa (nav-tab) y chips de categoría (con aria-pressed)
  */
 
 function updateLoraByteCounter() {
   const titleEl = document.getElementById("titulo");
   const respEl = document.getElementById("respuesta");
   const badgeEl = document.getElementById("byte-counter");
+  const meterEl = document.getElementById("byte-meter-fill");
   if (!titleEl || !respEl || !badgeEl) return;
 
   const title = titleEl.value.trim();
@@ -15,9 +16,18 @@ function updateLoraByteCounter() {
   const preview = title ? `🤖 📌 ${title}: ${resp}` : `🤖 📌 ${resp}`;
   const bytes = new TextEncoder().encode(preview).length;
   const pkts = Math.max(1, Math.ceil(bytes / 220));
+  const isMultiPacket = bytes > 228;
 
-  badgeEl.textContent = `${bytes} / 228 bytes (${pkts} paq LoRa)`;
-  badgeEl.className = bytes > 228 ? "byte-badge warn" : "byte-badge";
+  badgeEl.textContent = isMultiPacket
+    ? `${bytes} / 228 bytes (${pkts} paq LoRa · Multitrama)`
+    : `${bytes} / 228 bytes (${pkts} paq LoRa)`;
+  badgeEl.className = isMultiPacket ? "byte-badge warn" : "byte-badge";
+
+  if (meterEl) {
+    const ratio = Math.min(1, Math.max(0.03, bytes / 228));
+    meterEl.style.transform = `scaleX(${ratio.toFixed(3)})`;
+    meterEl.className = isMultiPacket ? "byte-meter-fill warn" : "byte-meter-fill";
+  }
 }
 
 function bindDynamicControls() {
@@ -52,8 +62,12 @@ window.selectCategoryChip = function (btn, catValue) {
   if (hiddenCat) {
     hiddenCat.value = catValue;
   }
-  document.querySelectorAll(".filter-chips .chip").forEach((c) => c.classList.remove("active"));
+  document.querySelectorAll(".filter-chips .chip").forEach((c) => {
+    c.classList.remove("active");
+    c.setAttribute("aria-pressed", "false");
+  });
   btn.classList.add("active");
+  btn.setAttribute("aria-pressed", "true");
 };
 
 document.addEventListener("DOMContentLoaded", bindDynamicControls);

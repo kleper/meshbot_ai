@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="text-scale" content="scale" />
   <title>PlayaRica Mesh · Conocimiento Comunitario Local</title>
-  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/styles.css?v=2.3" />
   <script src="/static/js/htmx.min.js" defer></script>
-  <script src="/static/js/app.js" defer></script>
+  <script src="/static/js/app.js?v=2.3" defer></script>
 </head>
 <body>
 
@@ -18,10 +21,18 @@
          hx-target="#tab-content"
          hx-push-url="true"
          class="brand">
-        <div class="brand-icon" aria-hidden="true">📡</div>
+        <div class="brand-icon" aria-hidden="true">
+          <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+            <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+            <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
+          </svg>
+        </div>
         <div>
           <h1>PlayaRica Mesh · Conocimiento Local</h1>
-          <p>RAG Híbrido SQLite FTS5 + NPU Hailo-10H (San Roque, Antioquia)</p>
+          <p>RAG Híbrido SQLite FTS5 + NPU Hailo-10H · San Roque, Antioquia</p>
         </div>
       </a>
 
@@ -41,7 +52,13 @@
          data-tab="directorio"
          class="nav-tab {% if active_tab == 'directorio' %}active{% endif %}"
          {% if active_tab == 'directorio' %}aria-current="page"{% endif %}>
-        <span class="tab-icon" aria-hidden="true">📇</span>
+        <span class="tab-icon" aria-hidden="true">
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            <path d="M8 7h6" />
+            <path d="M8 11h8" />
+          </svg>
+        </span>
         <span class="tab-label-full">Base de Conocimiento</span>
         <span class="tab-label-short">Directorio</span>
       </a>
@@ -53,7 +70,13 @@
          data-tab="agregar"
          class="nav-tab {% if active_tab == 'agregar' %}active{% endif %}"
          {% if active_tab == 'agregar' %}aria-current="page"{% endif %}>
-        <span class="tab-icon" aria-hidden="true">➕</span>
+        <span class="tab-icon" aria-hidden="true">
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v8" />
+            <path d="M8 12h8" />
+          </svg>
+        </span>
         <span class="tab-label-full">Agregar Contenido</span>
         <span class="tab-label-short">Agregar</span>
       </a>
@@ -65,7 +88,12 @@
          data-tab="simulador"
          class="nav-tab {% if active_tab == 'simulador' %}active{% endif %}"
          {% if active_tab == 'simulador' %}aria-current="page"{% endif %}>
-        <span class="tab-icon" aria-hidden="true">🧪</span>
+        <span class="tab-icon" aria-hidden="true">
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+        </span>
         <span class="tab-label-full">Simulador y Red LoRa</span>
         <span class="tab-label-short">Probar</span>
       </a>

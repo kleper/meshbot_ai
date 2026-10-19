@@ -1,12 +1,21 @@
 <section class="card" data-active-tab="directorio">
   {% if flash_message %}
-    <div class="alert-banner" role="status">{{ flash_message }}</div>
+    <div class="alert-banner" role="status">
+      <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+      <span>{{ flash_message }}</span>
+    </div>
   {% endif %}
 
   <div class="card-header">
     <div>
-      <h2 class="card-title">📇 Base de Conocimiento Comunitario ({{ total_kb_items }} fichas)</h2>
-      <p class="card-subtitle" style="margin-bottom: 0.6rem;">
+      <h2 class="card-title">
+        <span>Base de Conocimiento Comunitario</span>
+        <span class="title-count">{{ total_kb_items }} fichas</span>
+      </h2>
+      <p class="card-subtitle card-subtitle-tight">
         Búsqueda instantánea con SQLite FTS5 (sin tildes + sinónimos rurales de Playa Rica).
       </p>
     </div>
@@ -15,7 +24,11 @@
        hx-target="#tab-content"
        hx-push-url="true"
        class="btn btn-primary btn-sm">
-      ➕ Nueva Ficha Local
+      <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      <span>Nueva Ficha Local</span>
     </a>
   </div>
 
@@ -27,49 +40,86 @@
         hx-trigger="submit, input from:#search-input changed delay:180ms, search from:#search-input">
     <input type="hidden" id="filter-categoria" name="categoria" value="{{ selected_categoria }}" />
 
-    <div>
-      <label for="search-input" style="position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0);">
+    <div class="search-field-wrap">
+      <label for="search-input" class="sr-only">
         Buscar en el directorio local
       </label>
+      <svg class="search-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
       <input
         type="search"
         id="search-input"
+        class="search-input-with-icon"
         name="q"
         value="{{ query }}"
-        placeholder="🔍 Buscar por nombre, oficio, teléfono, 'chiva', 'escalera', 'médico', 'gas'..."
+        placeholder="Buscar por nombre, oficio, teléfono, 'chiva', 'escalera', 'médico', 'gas'..."
       />
     </div>
 
     <div class="filter-chips" role="group" aria-label="Filtrar por categoría">
       <button type="submit"
               class="chip {% if not selected_categoria %}active{% endif %}"
+              aria-pressed="{{ 'true' if not selected_categoria else 'false' }}"
               onclick="selectCategoryChip(this, '')">
-        Todas
+        <span>Todas</span>
       </button>
       <button type="submit"
               class="chip {% if selected_categoria == 'transporte' %}active{% endif %}"
+              aria-pressed="{{ 'true' if selected_categoria == 'transporte' else 'false' }}"
               onclick="selectCategoryChip(this, 'transporte')">
-        🚌 Transporte
+        <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="13" rx="2" />
+          <path d="M3 11h18" />
+          <circle cx="7.5" cy="19.5" r="1.5" />
+          <circle cx="16.5" cy="19.5" r="1.5" />
+        </svg>
+        <span>Transporte</span>
       </button>
       <button type="submit"
               class="chip {% if selected_categoria == 'directorio' %}active{% endif %}"
+              aria-pressed="{{ 'true' if selected_categoria == 'directorio' else 'false' }}"
               onclick="selectCategoryChip(this, 'directorio')">
-        📇 Directorio
+        <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <rect x="8" y="2" width="8" height="4" rx="1" />
+          <path d="M9 12h6M9 16h4" />
+        </svg>
+        <span>Directorio</span>
       </button>
       <button type="submit"
               class="chip {% if selected_categoria == 'emergencias' %}active{% endif %}"
+              aria-pressed="{{ 'true' if selected_categoria == 'emergencias' else 'false' }}"
               onclick="selectCategoryChip(this, 'emergencias')">
-        🚨 Emergencias
+        <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <span>Emergencias</span>
       </button>
       <button type="submit"
               class="chip {% if selected_categoria == 'avisos' %}active{% endif %}"
+              aria-pressed="{{ 'true' if selected_categoria == 'avisos' else 'false' }}"
               onclick="selectCategoryChip(this, 'avisos')">
-        📢 Avisos
+        <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m3 11 18-5v12L3 14v-3z" />
+          <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+        </svg>
+        <span>Avisos</span>
       </button>
       <button type="submit"
               class="chip {% if selected_categoria == 'agro' %}active{% endif %}"
+              aria-pressed="{{ 'true' if selected_categoria == 'agro' else 'false' }}"
               onclick="selectCategoryChip(this, 'agro')">
-        🌾 Agro
+        <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 20h10" />
+          <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+          <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+          <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
+        </svg>
+        <span>Agro</span>
       </button>
     </div>
   </form>

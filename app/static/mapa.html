@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartografía RF LoRa Meshtastic · Playa Rica ↔ Carolina del Príncipe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg-canvas: #080d18;
+      --bg-surface: #0e1628;
+      --bg-elevated: #142038;
+      --bg-hover: #1a2a47;
+      --border-subtle: #1f3052;
+      --border-strong: #2e4775;
+      --text-primary: #f1f5f9;
+      --text-secondary: #a8b8d0;
+      --text-dim: #798da8;
+      --accent-emerald: #00e676;
+      --accent-cyan: #00b0ff;
+      --accent-sky: #38bdf8;
+      --accent-amber: #ffab00;
+      --accent-violet: #d500f9;
+      --accent-crimson: #ff1744;
+      --scrollbar-thumb: #2b426b;
+      --scrollbar-track: #0b1220;
+      --font-display: "Archivo", sans-serif;
+      --font-sans: "Atkinson Hyperlegible", sans-serif;
+      --font-mono: "IBM Plex Mono", monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    ::selection {
+      background: rgba(0, 230, 118, 0.24);
+      color: #ffffff;
+    }
+
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Scrollbar styling per modern-web-guidance */
+    .scroller {
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+      scrollbar-width: thin;
+    }
+
+    @supports not (scrollbar-color: auto) {
+      .scroller::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .scroller::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 4px;
+      }
+      .scroller::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
+    }
+
+    /* Keyboard focus accessibility */
+    :focus-visible {
+      outline: 2px solid var(--accent-emerald);
+      outline-offset: 2px;
+    }
+
+    /* Top bar */
+    .topbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      z-index: 1000;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(0, 230, 118, 0.12);
+      border: 1px solid rgba(0, 230, 118, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-emerald);
+      flex-shrink: 0;
+    }
+
+    .brand-copy h1 {
+      font-family: var(--font-display);
+      font-size: 1.08rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .brand-copy p {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .topbar-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .scope-switcher {
+      display: inline-flex;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 4px;
+      gap: 8px;
+    }
+
+    .scope-btn {
+      font-family: var(--font-sans);
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 12px;
+      min-height: 40px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.16s cubic-bezier(0.22, 1, 0.36, 1), color 0.16s ease;
+    }
+
+    .scope-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .scope-btn[aria-pressed="true"] {
+      background: var(--bg-elevated);
+      color: var(--accent-emerald);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .telemetry-strip {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 7px 14px;
+      font-size: 0.76rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .telemetry-item {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      color: var(--text-secondary);
+    }
+
+    .telemetry-item strong {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .telemetry-divider {
+      width: 1px;
+      height: 14px;
+      background: var(--border-subtle);
+    }
+
+    /* Main Workspace */
+    .workspace {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    .sidebar {
+      width: 430px;
+      max-width: 100%;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 500;
+    }
+
+    .panel-block {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .panel-header h2 {
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-header h2 svg {
+      color: var(--accent-sky);
+      flex-shrink: 0;
+    }
+
+    .btn-ghost {
+      font-family: var(--font-sans);
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--accent-sky);
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 6px;
+      padding: 6px 12px;
+      min-height: 40px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: var(--accent-sky);
+    }
+
+    /* Layer Toggles */
+    .layer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .chip-toggle {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-height: 44px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .chip-toggle:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+
+    .chip-toggle[aria-pressed="true"] {
+      background: var(--bg-elevated);
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .chip-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      flex-shrink: 0;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .chip-toggle[aria-pressed="true"] .chip-indicator {
+      background: var(--accent-emerald);
+    }
+
+    /* Route Simulator */
+    .sim-card {
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .select-label {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .sim-select {
+      width: 100%;
+      font-family: var(--font-sans);
+      font-size: 0.79rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 9px 11px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .sim-readout {
+      font-size: 0.77rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .sim-readout strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Dynamic SVG Profile Widget */
+    .profile-box {
+      margin-top: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .profile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .profile-header span strong {
+      font-family: var(--font-mono);
+      color: var(--accent-emerald);
+    }
+
+    .profile-svg {
+      width: 100%;
+      height: 112px;
+      display: block;
+    }
+
+    /* Node list (No side-tab border, clean 1px border + header pill) */
+    .node-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .node-item {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .node-item:hover, .node-item.is-selected {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
+
+    .node-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .node-role-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+    }
+
+    .node-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .node-altitude {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .node-name {
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .node-summary {
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: var(--text-secondary);
+    }
+
+    .node-footer {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 0.69rem;
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .node-footer span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Links Matrix Table */
+    .rf-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rf-table th {
+      text-align: left;
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 7px 6px;
+      border-bottom: 1px solid var(--border-strong);
+    }
+
+    .rf-table td {
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(31, 48, 82, 0.65);
+      color: var(--text-secondary);
+    }
+
+    .rf-table tbody tr {
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+    }
+
+    .rf-table tbody tr:hover,
+    .rf-table tbody tr.is-selected {
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    .rf-pair {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rf-mono {
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+
+    .rf-los-badge {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent-emerald);
+    }
+
+    /* Map Surface */
+    .map-stage {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: #08101d;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Map Floating Legend Overlay */
+    .map-hud {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      z-index: 450;
+      background: rgba(14, 22, 40, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      pointer-events: auto;
+      max-width: 340px;
+    }
+
+    .map-hud-title {
+      font-family: var(--font-display);
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .map-hud-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .hud-swatch {
+      width: 18px;
+      height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Custom Map Markers & Popups */
+    .distance-label {
+      background: rgba(8, 13, 24, 0.92);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      padding: 2px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55);
+      display: inline-block;
+    }
+
+    .node-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 11.5px;
+      color: #080d18;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+      transition: transform 0.15s ease;
+    }
+
+    .node-pin:hover {
+      transform: scale(1.1);
+    }
+
+    .poi-label {
+      background: rgba(14, 22, 40, 0.92);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Dark-themed Leaflet Popups & Controls */
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      font-family: var(--font-sans);
+    }
+
+    .leaflet-container a.leaflet-popup-close-button {
+      color: var(--text-secondary);
+    }
+
+    .leaflet-control-layers,
+    .leaflet-bar {
+      border: 1px solid var(--border-strong) !important;
+      background: rgba(14, 22, 40, 0.94) !important;
+      color: var(--text-primary) !important;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) !important;
+      border-radius: 8px !important;
+    }
+
+    .leaflet-bar a {
+      background: transparent !important;
+      color: var(--text-primary) !important;
+      border-bottom: 1px solid var(--border-subtle) !important;
+    }
+
+    .leaflet-bar a:hover {
+      background: var(--bg-elevated) !important;
+    }
+
+    @media (max-width: 960px) {
+      .topbar {
+        padding: 10px 14px;
+      }
+      .telemetry-strip {
+        display: none;
+      }
+      .workspace {
+        flex-direction: column-reverse;
+      }
+      .sidebar {
+        width: 100%;
+        height: 48%;
+        border-right: none;
+        border-top: 1px solid var(--border-strong);
+      }
+      .map-stage {
+        height: 52%;
+      }
+      .map-hud {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand-block">
+    <div class="brand-mark" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+        <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+        <circle cx="12" cy="12" r="2" />
+        <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+        <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1" />
+      </svg>
+    </div>
+    <div class="brand-copy">
+      <h1>Red LoRa Meshtastic · Vereda Playa Rica ↔ Carolina del Príncipe</h1>
+      <p>Planificación RF en 915 MHz con Línea de Vista (SRTM), Pivote en Embalse San Lorenzo y Bot IA Local (RPi5 + Hailo-10H)</p>
+    </div>
+  </div>
+
+  <div class="topbar-controls">
+    <div class="scope-switcher" role="group" aria-label="Escala geográfica de la red">
+      <button type="button" id="scope-local" class="scope-btn" aria-pressed="true" onclick="setNetworkScope('local')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+        Vereda Playa Rica (5 Nodos)
+      </button>
+      <button type="button" id="scope-regional" class="scope-btn" aria-pressed="false" onclick="setNetworkScope('regional')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+        Troncal Carolina ↔ Playa Rica (10 Nodos)
+      </button>
+    </div>
+
+    <div class="telemetry-strip" aria-label="Parámetros RF de la red">
+      <div class="telemetry-item">Banda <strong style="color:var(--accent-emerald)">915 MHz · SF11</strong></div>
+      <div class="telemetry-divider"></div>
+      <div class="telemetry-item">Alcance <strong id="kpi-span">18.5 km² (Local)</strong></div>
+      <div class="telemetry-divider"></div>
+      <div class="telemetry-item">Salto Máx <strong id="kpi-hop" style="color:var(--accent-amber)">2.00 km (97.7 dB)</strong></div>
+      <div class="telemetry-divider"></div>
+      <div class="telemetry-item">Presupuesto <strong id="kpi-budget">153 dB (+55 dB)</strong></div>
+    </div>
+  </div>
+</header>
+
+<div class="workspace">
+  <aside class="sidebar scroller" aria-label="Panel de control e inspección de nodos">
+    <section class="panel-block">
+      <div class="panel-header">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          Capas Cartográficas
+        </h2>
+        <button type="button" class="btn-ghost" onclick="resetMapView()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Encuadrar Vista
+        </button>
+      </div>
+      <div class="layer-grid">
+        <button type="button" id="btn-cov" class="chip-toggle" aria-pressed="true" onclick="toggleLayer('coverage')">
+          <span class="chip-indicator"></span> Cobertura Primaria
+        </button>
+        <button type="button" id="btn-ext" class="chip-toggle" aria-pressed="true" onclick="toggleLayer('extended')">
+          <span class="chip-indicator"></span> Halo Malla (&gt;2 km)
+        </button>
+        <button type="button" id="btn-links" class="chip-toggle" aria-pressed="true" onclick="toggleLayer('links')">
+          <span class="chip-indicator"></span> Enlaces y Distancias
+        </button>
+        <button type="button" id="btn-pois" class="chip-toggle" aria-pressed="true" onclick="toggleLayer('pois')">
+          <span class="chip-indicator"></span> Referencias OSM
+        </button>
+      </div>
+    </section>
+
+    <section class="panel-block">
+      <div class="panel-header">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Simulador de Ruta y Perfil SRTM
+        </h2>
+      </div>
+      <div class="sim-card">
+        <label for="sim-select" class="select-label">Escenario de propagación LoRa:</label>
+        <select id="sim-select" class="sim-select" onchange="runSimulation(this.value)">
+          <option value="all">Todos los enlaces activos de la malla</option>
+          <option value="escuela">Escuela Rural Montealegre → Bot IA (Nodo 1)</option>
+          <option value="pizzeria">Pizzería de mis Viejos (Nodo 3) → Bot IA (Nodo 1)</option>
+          <option value="ilusion">Vereda La Ilusión / Ribera Oeste → Bot IA (Nodo 1)</option>
+          <option value="norte">Entrada Norte (Vía San Roque) → Extremo Sur (Río Nare)</option>
+          <option value="failover">Respaldo por el Agua (Si se apaga un nodo vial)</option>
+          <option value="carolina_full">Troncal Completa: Carolina del Príncipe (C2) → Playa Rica (N1)</option>
+          <option value="carolina_backup">Enlace Dorsal Directo: Gómez Plata (R1) → Embalse (R3 · 31.5 km)</option>
+        </select>
+        <div id="sim-output" class="sim-readout">
+          Selecciona un escenario o haz clic sobre cualquier enlace en la tabla para inspeccionar su ruta y perfil topográfico SRTM.
+        </div>
+        <div class="profile-box">
+          <div class="profile-header">
+            <span id="prof-title">Perfil de Altitud (Nodos Activos)</span>
+            <span id="prof-clearance">Despeje LOS: <strong>100% Libre</strong></span>
+          </div>
+          <svg id="profile-svg" class="profile-svg" viewBox="0 0 360 112" role="img" aria-label="Gráfico de corte topográfico entre nodos"></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-block">
+      <div class="panel-header">
+        <h2 id="nodes-heading">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Nodos Estratégicos (5 Activos)
+        </h2>
+      </div>
+      <div id="nodes-container" class="node-stack"></div>
+    </section>
+
+    <section class="panel-block">
+      <div class="panel-header">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Matriz de Enlaces RF (915 MHz)
+        </h2>
+      </div>
+      <table class="rf-table">
+        <thead>
+          <tr>
+            <th>Tramo</th>
+            <th>Distancia</th>
+            <th>Pérdida</th>
+            <th>Despeje SRTM</th>
+          </tr>
+        </thead>
+        <tbody id="links-tbody"></tbody>
+      </table>
+    </section>
+  </aside>
+
+  <main class="map-stage">
+    <div id="map" role="region" aria-label="Mapa interactivo de cobertura LoRa Meshtastic"></div>
+    <div class="map-hud" aria-hidden="true">
+      <div class="map-hud-title">Convenciones de Radiofrecuencia</div>
+      <div class="map-hud-row">
+        <span class="hud-swatch" style="background:var(--accent-emerald)"></span>
+        <span>Enlace Primario con Línea de Vista (LOS)</span>
+      </div>
+      <div class="map-hud-row">
+        <span class="hud-swatch" style="background:var(--accent-cyan)"></span>
+        <span>Enlace sobre Espejo de Agua (Embalse San Lorenzo)</span>
+      </div>
+      <div class="map-hud-row">
+        <span class="hud-swatch" style="background:var(--accent-amber);border-top:2px dashed var(--accent-amber);height:0"></span>
+        <span>Enlace Dorsal / Respaldo de Largo Alcance</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const SVG_ICONS = {
+    mountain: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>',
+    pin: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    radio: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49"/></svg>',
+    landmark: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 22 7 12 2"/><line x1="6" y1="7" x2="6" y2="18"/><line x1="18" y1="7" x2="18" y2="18"/><line x1="2" y1="18" x2="22" y2="18"/></svg>'
+  };
+
+  const ALL_NODES = [
+    {
+      id: "N1",
+      scope: "local",
+      name: "Nodo 1 · Principal (Gateway Bot IA)",
+      sector: "Sector Central La Rampa · Vía Principal",
+      lat: 6.397637,
+      lon: -75.005829,
+      elev: 1358,
+      role: "CLIENT + Bot IA",
+      color: "#00e676",
+      radius_pri: 1400,
+      radius_ext: 2400,
+      desc: "Nodo central en Playa Rica. Ejecuta el Bot IA Qwen3-1.7B en NPU Hailo-10H, pronóstico de lluvias y RAG Local comunitario."
+    },
+    {
+      id: "N2",
+      scope: "local",
+      name: "Nodo 2 · Península Represa (Espejo RF)",
+      sector: "Embalse San Lorenzo-Jaguas (Península Central)",
+      lat: 6.397531,
+      lon: -75.015571,
+      elev: 1260,
+      role: "ROUTER_CLIENT Pivote",
+      color: "#00b0ff",
+      radius_pri: 1600,
+      radius_ext: 2800,
+      desc: "Ubicado sobre la península que entra al embalse. Al no tener montañas enfrente sobre el agua, ve directamente toda la carretera de norte a sur."
+    },
+    {
+      id: "N3",
+      scope: "local",
+      name: "Nodo 3 · Pizzería de mis Viejos",
+      sector: "Corredor Vial Central-Norte",
+      lat: 6.404818,
+      lon: -75.009676,
+      elev: 1344,
+      role: "CLIENT Comunitario",
+      color: "#ffab00",
+      radius_pri: 1200,
+      radius_ext: 2200,
+      desc: "Punto comunitario estratégico sobre la vía principal. Conecta a 905 m con el Nodo 1, a 1.04 km con la Represa (N2) y a 1.10 km con el Alto Norte (N4)."
+    },
+    {
+      id: "N4",
+      scope: "local",
+      name: "Nodo 4 · Alto Curva Norte (La Ilusión)",
+      sector: "Cota Alta Vía San Roque · Mirador Norte",
+      lat: 6.412800,
+      lon: -75.015600,
+      elev: 1378,
+      role: "ROUTER Solar",
+      color: "#d500f9",
+      radius_pri: 1600,
+      radius_ext: 2800,
+      desc: "Punto más alto de Playa Rica (1,378 m.s.n.m.). Cubre el acceso norte de la vereda, Quebrada San Miguel y recibe el enlace troncal desde R3."
+    },
+    {
+      id: "N5",
+      scope: "local",
+      name: "Nodo 5 · Alto Mirador Sur (Montealegre)",
+      sector: "Sector Escuela Rural Montealegre · Cuenca Río Nare",
+      lat: 6.391700,
+      lon: -75.000200,
+      elev: 1333,
+      role: "ROUTER Solar",
+      color: "#ff1744",
+      radius_pri: 1600,
+      radius_ext: 2600,
+      desc: "Domina la cuchilla sur a 280 m de la Escuela Rural Montealegre. Cubre la salida sur de la vía, brazo sur del embalse, Río Nare y Quebrada Salento."
+    },
+    {
+      id: "R3",
+      scope: "regional",
+      name: "Nodo R3 · Cuchilla San Lorenzo (Balcón Embalse)",
+      sector: "Filo Occidental Santo Domingo – Playa Rica",
+      lat: 6.420000,
+      lon: -75.061000,
+      elev: 1834,
+      role: "ROUTER Solar Troncal",
+      color: "#e040fb",
+      radius_pri: 5500,
+      radius_ext: 8000,
+      desc: "Balcón occidental sobre la cuenca del embalse (1,834 m.s.n.m.). Ilumina simultáneamente a N4 (5.08 km), N2 (5.61 km), N1 (6.58 km) y N5 (7.42 km)."
+    },
+    {
+      id: "R2",
+      scope: "regional",
+      name: "Nodo R2 · Alto Santa Gertrudis (Cañón del Nus)",
+      sector: "Cordillera Santo Domingo / San Roque",
+      lat: 6.508200,
+      lon: -75.119300,
+      elev: 1885,
+      role: "ROUTER Solar Troncal",
+      color: "#ff6d00",
+      radius_pri: 7500,
+      radius_ext: 11500,
+      desc: "Cumbre estratégica al sur del cañón del Río Nus (1,885 m.s.n.m.). Cruza el valle del Nus hacia R1 (19.80 km, +129.3 m LOS) y enlaza con R3 (11.70 km)."
+    },
+    {
+      id: "R1",
+      scope: "regional",
+      name: "Nodo R1 · Alto La Región (Gómez Plata)",
+      sector: "Cumbre Maestra Altiplano Norte (Matasanos)",
+      lat: 6.655000,
+      lon: -75.220000,
+      elev: 2247,
+      role: "ROUTER Solar Troncal",
+      color: "#ffd600",
+      radius_pri: 9500,
+      radius_ext: 14000,
+      desc: "Cumbre maestra de toda la red (2,247 m.s.n.m. en Gómez Plata). Recibe a Cerro El Radio (C1 a 13.58 km) y salta hacia R2 (19.80 km) y R3 directo (31.49 km)."
+    },
+    {
+      id: "C1",
+      scope: "regional",
+      name: "Nodo C1 · Cerro El Radio (Carolina del Príncipe)",
+      sector: "Vereda La Camelia · Cumbre Norte (Marcado)",
+      lat: 6.748061,
+      lon: -75.299692,
+      elev: 2061,
+      role: "ROUTER_CLIENT Cabecera",
+      color: "#00e5ff",
+      radius_pri: 3500,
+      radius_ext: 5500,
+      desc: "Punto estratégico marcado en Cerro El Radio (2,061 m.s.n.m.). Enlaza a 1.60 km con C2 en Carolina del Príncipe y proyecta vista limpia hacia Gómez Plata (R1)."
+    },
+    {
+      id: "C2",
+      scope: "regional",
+      name: "Nodo C2 · Carolina del Príncipe (Urbano / La Camelia)",
+      sector: "Municipio Carolina del Príncipe (Marcado)",
+      lat: 6.740144,
+      lon: -75.287641,
+      elev: 1830,
+      role: "CLIENT Gateway",
+      color: "#38bdf8",
+      radius_pri: 2000,
+      radius_ext: 3500,
+      desc: "Segundo punto marcado en Carolina del Príncipe (1,830 m.s.n.m.). Brinda cobertura local al municipio y se conecta a la troncal vía Cerro El Radio (C1)."
+    }
+  ];
+
+  const ALL_LINKS = [
+    { id: "N1-N2", scope: "local", from: "N1", to: "N2", dist_km: 1.08, dist_m: 1077, fspl: 92.3, los: "+11.9 m libre", primary: true, color: "#00e676", mid_elev: 1237 },
+    { id: "N1-N3", scope: "local", from: "N1", to: "N3", dist_km: 0.90, dist_m: 905,  fspl: 90.8, los: "+0.5 m libre",  primary: true, color: "#00e676", mid_elev: 1345 },
+    { id: "N2-N3", scope: "local", from: "N2", to: "N3", dist_km: 1.04, dist_m: 1040, fspl: 92.0, los: "Espejo de agua", primary: true, color: "#00b0ff", mid_elev: 1237 },
+    { id: "N3-N4", scope: "local", from: "N3", to: "N4", dist_km: 1.10, dist_m: 1103, fspl: 92.5, los: "+4.5 m libre",  primary: true, color: "#d500f9", mid_elev: 1350 },
+    { id: "N2-N4", scope: "local", from: "N2", to: "N4", dist_km: 1.70, dist_m: 1698, fspl: 96.3, los: "+8.8 m (Agua)", primary: true, color: "#00b0ff", mid_elev: 1245 },
+    { id: "N1-N4", scope: "local", from: "N1", to: "N4", dist_km: 2.00, dist_m: 2002, fspl: 97.7, los: "+20.0 m libre", primary: false, color: "#fbbf24", mid_elev: 1340 },
+    { id: "N1-N5", scope: "local", from: "N1", to: "N5", dist_km: 0.91, dist_m: 907,  fspl: 90.8, los: "+9.2 m libre",  primary: true, color: "#ff1744", mid_elev: 1330 },
+    { id: "N2-N5", scope: "local", from: "N2", to: "N5", dist_km: 1.82, dist_m: 1818, fspl: 96.9, los: "+4.0 m (Agua)", primary: true, color: "#00b0ff", mid_elev: 1242 },
+    { id: "R3-N4", scope: "regional", from: "R3", to: "N4", dist_km: 5.08, dist_m: 5080, fspl: 105.8, los: "+47.4 m libre", primary: true, color: "#e040fb", mid_elev: 1490 },
+    { id: "R3-N2", scope: "regional", from: "R3", to: "N2", dist_km: 5.61, dist_m: 5610, fspl: 106.6, los: "+29.8 m libre", primary: true, color: "#00b0ff", mid_elev: 1410 },
+    { id: "R3-N1", scope: "regional", from: "R3", to: "N1", dist_km: 6.58, dist_m: 6580, fspl: 108.0, los: "+52.9 m libre", primary: true, color: "#00e676", mid_elev: 1450 },
+    { id: "R2-R3", scope: "regional", from: "R2", to: "R3", dist_km: 11.70, dist_m: 11700, fspl: 113.0, los: "+9.8 m libre", primary: true, color: "#ff6d00", mid_elev: 1720 },
+    { id: "R1-R2", scope: "regional", from: "R1", to: "R2", dist_km: 19.80, dist_m: 19800, fspl: 117.6, los: "+129.3 m (Río Nus)", primary: true, color: "#ffd600", mid_elev: 1044 },
+    { id: "R1-R3", scope: "regional", from: "R1", to: "R3", dist_km: 31.49, dist_m: 31490, fspl: 121.6, los: "+50.9 m (Respaldo)", primary: false, color: "#fbbf24", mid_elev: 1280 },
+    { id: "C1-R1", scope: "regional", from: "C1", to: "R1", dist_km: 13.58, dist_m: 13580, fspl: 114.3, los: "+19.5 m libre", primary: true, color: "#00e5ff", mid_elev: 1820 },
+    { id: "C1-C2", scope: "regional", from: "C1", to: "C2", dist_km: 1.60, dist_m: 1596, fspl: 95.7, los: "Mástil 9m (+49dB)", primary: true, color: "#38bdf8", mid_elev: 1875 }
+  ];
+
+  const POIS = [
+    { name: "Escuela Rural Montealegre", scope: "local", lat: 6.3921815, lon: -74.9974999, note: "Cubierta a 280 m por el Nodo 5" },
+    { name: "Embalse San Lorenzo-Jaguas", scope: "local", lat: 6.3995, lon: -75.0210, note: "Cuerpo de agua (1,237 m.s.n.m.) que sirve de espejo RF" },
+    { name: "Vereda La Ilusión (Ribera Oeste)", scope: "local", lat: 6.4063, lon: -75.0285, note: "Cubierta por Nodo 2 y Nodo 4 a través del embalse" },
+    { name: "Sector Las Arenosas (Suroeste)", scope: "local", lat: 6.3925, lon: -75.0300, note: "Cobertura reflejada sobre el brazo occidental de la represa" },
+    { name: "Sector Calamar / El Porvenir", scope: "local", lat: 6.4090, lon: -74.9940, note: "Cota oriental cubierta por los halos de N1, N3 y N4" },
+    { name: "Gómez Plata (1,800 m)", scope: "regional", lat: 6.6815, lon: -75.2195, note: "Municipio cubierto por la sombra norte de Nodo R1" },
+    { name: "Cañón del Río Nus / Cisneros (1,044 m)", scope: "regional", lat: 6.5550, lon: -75.1050, note: "Depresión topográfica superada por el salto R1 ↔ R2" },
+    { name: "Santo Domingo (1,975 m)", scope: "regional", lat: 6.4720, lon: -75.1650, note: "Cordillera central entre R2 y R3" },
+    { name: "Cabecera San Roque (1,475 m)", scope: "regional", lat: 6.4860, lon: -75.0200, note: "Alcanzada por el halo de R2 y R3" }
+  ];
+
+  let currentScope = "local";
+  const nodeMap = {};
+  ALL_NODES.forEach(n => { nodeMap[n.id] = n; });
+  let linkPolylines = {};
+
+  const map = L.map('map', {
+    center: [6.4015, -75.0095],
+    zoom: 14,
+    zoomControl: true
+  });
+
+  const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: 'Datos: &copy; OpenStreetMap contributors, SRTM | Estilo: &copy; OpenTopoMap (CC-BY-SA)'
+  }).addTo(map);
+
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+
+  const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 18,
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+  });
+
+  L.control.layers({
+    "Topográfico (Curvas de Nivel)": topoLayer,
+    "OpenStreetMap Estándar": osmLayer,
+    "Satélite Esri World Imagery": satLayer
+  }, null, { position: 'topright' }).addTo(map);
+
+  L.control.scale({ metric: true, imperial: false, position: 'bottomright' }).addTo(map);
+
+  const layerGroups = {
+    coverage: L.layerGroup().addTo(map),
+    extended: L.layerGroup().addTo(map),
+    links: L.layerGroup().addTo(map),
+    pois: L.layerGroup().addTo(map),
+    nodes: L.layerGroup().addTo(map)
+  };
+
+  function getActiveNodes() {
+    return currentScope === "regional" ? ALL_NODES : ALL_NODES.filter(n => n.scope === "local");
+  }
+
+  function getActiveLinks() {
+    return currentScope === "regional" ? ALL_LINKS : ALL_LINKS.filter(l => l.scope === "local");
+  }
+
+  function getActivePois() {
+    return currentScope === "regional" ? POIS : POIS.filter(p => p.scope === "local");
+  }
+
+  function renderProfileSVG(points, titleText, clearanceText) {
+    const svg = document.getElementById('profile-svg');
+    document.getElementById('prof-title').textContent = titleText;
+    document.getElementById('prof-clearance').innerHTML = `Despeje LOS: <strong>${clearanceText}</strong>`;
+
+    const W = 360, H = 112;
+    const padL = 34, padR = 14, padT = 18, padB = 20;
+    const pw = W - padL - padR;
+    const ph = H - padT - padB;
+
+    const elevs = points.map(p => p.elev);
+    const minE = Math.min(...elevs, 1100) - 80;
+    const maxE = Math.max(...elevs, 1500) + 120;
+
+    const coords = points.map((p, idx) => {
+      const x = padL + (idx / Math.max(points.length - 1, 1)) * pw;
+      const y = padT + ph - ((p.elev - minE) / (maxE - minE)) * ph;
+      return { ...p, x, y };
+    });
+
+    const areaPts = [`${coords[0].x},${padT + ph}`]
+      .concat(coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`))
+      .concat([`${coords[coords.length - 1].x},${padT + ph}`])
+      .join(" ");
+
+    const linePts = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+
+    let losBeam = "";
+    const labeledNodes = coords.filter(c => c.isNode);
+    for (let i = 0; i < labeledNodes.length - 1; i++) {
+      const a = labeledNodes[i];
+      const b = labeledNodes[i + 1];
+      losBeam += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#00e676" stroke-width="2" stroke-dasharray="4 3" />`;
+    }
+
+    let dots = "";
+    labeledNodes.forEach(c => {
+      dots += `
+        <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4.5" fill="${c.color || '#00e676'}" stroke="#080d18" stroke-width="1.5" />
+        <text x="${c.x.toFixed(1)}" y="${Math.max(11, c.y - 7).toFixed(1)}" fill="#f1f5f9" font-family="IBM Plex Mono, monospace" font-size="9" font-weight="700" text-anchor="middle">${c.label}</text>
+      `;
+    });
+
+    svg.innerHTML = `
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + ph}" stroke="#1f3052" stroke-width="1" />
+      <line x1="${padL}" y1="${padT + ph}" x2="${padL + pw}" y2="${padT + ph}" stroke="#1f3052" stroke-width="1" />
+      <text x="${padL - 4}" y="${padT + 6}" fill="#798da8" font-family="IBM Plex Mono, monospace" font-size="8.5" text-anchor="end">${Math.round(maxE)}m</text>
+      <text x="${padL - 4}" y="${padT + ph}" fill="#798da8" font-family="IBM Plex Mono, monospace" font-size="8.5" text-anchor="end">${Math.round(minE)}m</text>
+      <polygon points="${areaPts}" fill="rgba(56, 189, 248, 0.14)" />
+      <polyline points="${linePts}" fill="none" stroke="#64748b" stroke-width="2" />
+      ${losBeam}
+      ${dots}
+    `;
+  }
+
+  function renderAll() {
+    Object.values(layerGroups).forEach(g => g.clearLayers());
+    linkPolylines = {};
+
+    const activeNodes = getActiveNodes();
+    const activeLinks = getActiveLinks();
+    const activePois = getActivePois();
+
+    document.getElementById('nodes-heading').innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Nodos Estratégicos (${activeNodes.length} Activos)
+    `;
+
+    activeNodes.forEach(n => {
+      L.circle([n.lat, n.lon], {
+        radius: n.radius_ext,
+        color: n.color,
+        weight: 1.4,
+        dashArray: '6, 6',
+        fillColor: n.color,
+        fillOpacity: 0.035,
+        interactive: false
+      }).addTo(layerGroups.extended);
+
+      L.circle([n.lat, n.lon], {
+        radius: n.radius_pri,
+        color: n.color,
+        weight: 2,
+        fillColor: n.color,
+        fillOpacity: 0.12,
+        interactive: false
+      }).addTo(layerGroups.coverage);
+
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="node-pin" style="background:${n.color}">${n.id}</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+
+      const marker = L.marker([n.lat, n.lon], { icon }).addTo(layerGroups.nodes);
+      marker.bindPopup(`
+        <div style="min-width:235px">
+          <div style="font-family:var(--font-display);font-size:14px;font-weight:700;color:#f1f5f9">${n.name}</div>
+          <div style="font-size:11.5px;color:#a8b8d0;margin-top:2px">${n.sector}</div>
+          <hr style="margin:8px 0;border:none;border-top:1px solid #1f3052"/>
+          <div style="font-size:12px;line-height:1.6;color:#cbd5e1;font-variant-numeric:tabular-nums">
+            <b>Altitud SRTM:</b> <span style="font-family:var(--font-mono);color:${n.color}">${n.elev} m.s.n.m.</span><br/>
+            <b>Rol en la Malla:</b> ${n.role}<br/>
+            <b>Radio Primario / Malla:</b> ${(n.radius_pri/1000).toFixed(1)} km / ${(n.radius_ext/1000).toFixed(1)} km<br/>
+            <b>Coordenadas:</b> <span style="font-family:var(--font-mono)">${n.lat.toFixed(5)}, ${n.lon.toFixed(5)}</span>
+          </div>
+          <p style="margin-top:8px;font-size:11.5px;line-height:1.45;color:#a8b8d0">${n.desc}</p>
+        </div>
+      `);
+      n.marker = marker;
+    });
+
+    activeLinks.forEach(l => {
+      const a = nodeMap[l.from];
+      const b = nodeMap[l.to];
+      const poly = L.polyline([[a.lat, a.lon], [b.lat, b.lon]], {
+        color: l.color,
+        weight: l.primary ? 4 : 2.5,
+        opacity: l.primary ? 0.92 : 0.75,
+        dashArray: l.primary ? null : '8, 6'
+      }).addTo(layerGroups.links);
+
+      poly.bindPopup(`
+        <div style="min-width:220px;font-variant-numeric:tabular-nums">
+          <div style="font-family:var(--font-display);font-size:13.5px;font-weight:700;color:#f1f5f9">Enlace RF ${l.from} ↔ ${l.to}</div>
+          <hr style="margin:7px 0;border:none;border-top:1px solid #1f3052"/>
+          <div style="font-size:12px;line-height:1.6;color:#cbd5e1">
+            <b>Distancia Real:</b> <span style="font-family:var(--font-mono)">${l.dist_km.toFixed(2)} km (${l.dist_m} m)</span><br/>
+            <b>Pérdida FSPL (915 MHz):</b> <span style="font-family:var(--font-mono)">${l.fspl} dB</span><br/>
+            <b>Despeje SRTM:</b> <span style="color:#00e676;font-weight:700">${l.los}</span><br/>
+            <b>Margen sobre 153 dB:</b> <span style="font-family:var(--font-mono);color:#38bdf8">+${(153 - l.fspl).toFixed(1)} dB</span>
+          </div>
+        </div>
+      `);
+
+      const midLat = (a.lat + b.lat) / 2;
+      const midLon = (a.lon + b.lon) / 2;
+      const badge = L.marker([midLat, midLon], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div class="distance-label" style="border-color:${l.color}">${l.from}↔${l.to}: ${l.dist_km.toFixed(2)} km</div>`,
+          iconSize: [118, 22],
+          iconAnchor: [59, 11]
+        })
+      }).addTo(layerGroups.links);
+
+      badge.on('click', () => inspectLink(l));
+      poly.on('click', () => inspectLink(l));
+      linkPolylines[l.id] = poly;
+    });
+
+    activePois.forEach(p => {
+      const m = L.marker([p.lat, p.lon], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div class="poi-label">${SVG_ICONS.landmark}<span>${p.name}</span></div>`,
+          iconSize: [180, 24],
+          iconAnchor: [90, 12]
+        })
+      }).addTo(layerGroups.pois);
+      m.bindPopup(`<b style="color:#f1f5f9">${p.name}</b><br/><span style="font-size:12px;color:#a8b8d0">${p.note}</span>`);
+    });
+
+    // Populate Sidebar Nodes
+    const nodesContainer = document.getElementById('nodes-container');
+    nodesContainer.innerHTML = '';
+    activeNodes.forEach(n => {
+      const card = document.createElement('div');
+      card.className = 'node-item';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `${n.name}, altitud ${n.elev} metros`);
+      card.innerHTML = `
+        <div class="node-item-top">
+          <span class="node-role-tag">
+            <span class="node-dot" style="background:${n.color}"></span>
+            ${n.id} · ${n.role}
+          </span>
+          <span class="node-altitude">${SVG_ICONS.mountain} ${n.elev} m</span>
+        </div>
+        <div class="node-name">${n.name}</div>
+        <div class="node-summary">${n.desc}</div>
+        <div class="node-footer">
+          <span>${SVG_ICONS.pin} ${n.lat.toFixed(4)}, ${n.lon.toFixed(4)}</span>
+          <span>${SVG_ICONS.radio} ${(n.radius_pri/1000).toFixed(1)}–${(n.radius_ext/1000).toFixed(1)} km</span>
+        </div>
+      `;
+      const selectNode = () => {
+        document.querySelectorAll('.node-item').forEach(el => el.classList.remove('is-selected'));
+        card.classList.add('is-selected');
+        map.flyTo([n.lat, n.lon], n.scope === 'regional' ? 13 : 15, { duration: 0.75 });
+        n.marker.openPopup();
+      };
+      card.onclick = selectNode;
+      card.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectNode();
+        }
+      };
+      nodesContainer.appendChild(card);
+    });
+
+    // Populate Links Table
+    const linksTbody = document.getElementById('links-tbody');
+    linksTbody.innerHTML = '';
+    activeLinks.forEach(l => {
+      const tr = document.createElement('tr');
+      tr.tabIndex = 0;
+      tr.innerHTML = `
+        <td><span class="rf-pair"><span class="node-dot" style="background:${l.color}"></span>${l.from} ↔ ${l.to}</span></td>
+        <td class="rf-mono">${l.dist_km.toFixed(2)} km</td>
+        <td class="rf-mono">${l.fspl} dB</td>
+        <td><span class="rf-los-badge">${l.los}</span></td>
+      `;
+      tr.onclick = () => inspectLink(l, tr);
+      tr.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          inspectLink(l, tr);
+        }
+      };
+      linksTbody.appendChild(tr);
+    });
+
+    // Default elevation profile chart
+    if (currentScope === "local") {
+      renderProfileSVG([
+        { label: "N2", elev: 1260, color: "#00b0ff", isNode: true },
+        { label: "N5", elev: 1333, color: "#ff1744", isNode: true },
+        { label: "N3", elev: 1344, color: "#ffab00", isNode: true },
+        { label: "N1", elev: 1358, color: "#00e676", isNode: true },
+        { label: "N4", elev: 1378, color: "#d500f9", isNode: true }
+      ], "Altitud Nodos Playa Rica (m.s.n.m.)", "+11.9 m sobre embalse");
+    } else {
+      renderProfileSVG([
+        { label: "C2", elev: 1830, color: "#38bdf8", isNode: true },
+        { label: "C1", elev: 2061, color: "#00e5ff", isNode: true },
+        { label: "R1", elev: 2247, color: "#ffd600", isNode: true },
+        { label: "Nus", elev: 1044, isNode: false },
+        { label: "R2", elev: 1885, color: "#ff6d00", isNode: true },
+        { label: "R3", elev: 1834, color: "#e040fb", isNode: true },
+        { label: "N1", elev: 1358, color: "#00e676", isNode: true }
+      ], "Corte SRTM Carolina ↔ Playa Rica (50.7 km)", "+19.5 m a +129.3 m");
+    }
+  }
+
+  function inspectLink(l, rowEl) {
+    document.querySelectorAll('.rf-table tbody tr').forEach(el => el.classList.remove('is-selected'));
+    if (rowEl) rowEl.classList.add('is-selected');
+    const poly = linkPolylines[l.id];
+    if (poly) {
+      map.fitBounds(poly.getBounds().pad(0.45));
+      poly.openPopup();
+    }
+    const a = nodeMap[l.from];
+    const b = nodeMap[l.to];
+    renderProfileSVG([
+      { label: a.id, elev: a.elev, color: a.color, isNode: true },
+      { label: "Terreno", elev: l.mid_elev, isNode: false },
+      { label: b.id, elev: b.elev, color: b.color, isNode: true }
+    ], `Tramo ${l.from} ↔ ${l.to} (${l.dist_km.toFixed(2)} km)`, l.los);
+  }
+
+  function setNetworkScope(scope) {
+    currentScope = scope;
+    document.getElementById('scope-local').setAttribute('aria-pressed', scope === 'local' ? 'true' : 'false');
+    document.getElementById('scope-regional').setAttribute('aria-pressed', scope === 'regional' ? 'true' : 'false');
+
+    if (scope === 'local') {
+      document.getElementById('kpi-span').textContent = '18.5 km² (Local)';
+      document.getElementById('kpi-hop').textContent = '2.00 km (97.7 dB)';
+      document.getElementById('kpi-budget').textContent = '153 dB (+55 dB)';
+    } else {
+      document.getElementById('kpi-span').textContent = '50.7 km (Troncal)';
+      document.getElementById('kpi-hop').textContent = '19.80 km (117.6 dB)';
+      document.getElementById('kpi-budget').textContent = '153 dB (+35 dB)';
+    }
+
+    renderAll();
+    resetMapView();
+  }
+
+  function toggleLayer(name) {
+    const grp = layerGroups[name];
+    const btnMap = { coverage: 'btn-cov', extended: 'btn-ext', links: 'btn-links', pois: 'btn-pois' };
+    const btn = document.getElementById(btnMap[name]);
+    if (map.hasLayer(grp)) {
+      map.removeLayer(grp);
+      btn.setAttribute('aria-pressed', 'false');
+    } else {
+      map.addLayer(grp);
+      btn.setAttribute('aria-pressed', 'true');
+    }
+  }
+
+  function resetMapView() {
+    if (currentScope === 'regional') {
+      map.flyTo([6.565, -75.150], 11, { duration: 0.85 });
+    } else {
+      map.flyTo([6.4015, -75.0095], 14, { duration: 0.85 });
+    }
+  }
+
+  function runSimulation(mode) {
+    const out = document.getElementById('sim-output');
+
+    if ((mode === 'carolina_full' || mode === 'carolina_backup') && currentScope !== 'regional') {
+      setNetworkScope('regional');
+      document.getElementById('sim-select').value = mode;
+    }
+
+    Object.values(linkPolylines).forEach(p => {
+      p.setStyle({ opacity: 0.18, weight: 2 });
+    });
+
+    const highlight = (ids) => {
+      ids.forEach(id => {
+        if (linkPolylines[id]) linkPolylines[id].setStyle({ opacity: 1, weight: 6 });
+      });
+    };
+
+    if (mode === 'all') {
+      getActiveLinks().forEach(l => {
+        if (linkPolylines[l.id]) {
+          linkPolylines[l.id].setStyle({ opacity: l.primary ? 0.92 : 0.75, weight: l.primary ? 4 : 2.5 });
+        }
+      });
+      out.innerHTML = "Todos los enlaces RF visibles están activos. Cualquier punto de la red cuenta con al menos dos rutas independientes.";
+    } else if (mode === 'escuela') {
+      highlight(['N1-N5', 'N2-N5', 'N1-N2']);
+      out.innerHTML = "<strong>Ruta Escuela Montealegre → Bot IA:</strong> El paquete entra por el <strong>Nodo 5</strong> (a 280 m de la escuela) y salta <strong>907 m directos</strong> con línea de vista (+9.2 m) hasta el <strong>Nodo 1 (Bot IA)</strong>.";
+      renderProfileSVG([
+        { label: "N5", elev: 1333, color: "#ff1744", isNode: true },
+        { label: "Valle", elev: 1318, isNode: false },
+        { label: "N1", elev: 1358, color: "#00e676", isNode: true }
+      ], "Salto Escuela (N5) → Bot IA (N1)", "+9.2 m libre");
+    } else if (mode === 'pizzeria') {
+      highlight(['N1-N3', 'N2-N3', 'N1-N2']);
+      out.innerHTML = "<strong>Ruta Pizzería de mis Viejos → Bot IA:</strong> El <strong>Nodo 3</strong> enlaza a <strong>905 m</strong> con el <strong>Nodo 1</strong> y dispone de ruta triangular por el espejo de agua del <strong>Nodo 2 (1.04 km + 1.08 km)</strong>.";
+      renderProfileSVG([
+        { label: "N3", elev: 1344, color: "#ffab00", isNode: true },
+        { label: "N2", elev: 1260, color: "#00b0ff", isNode: true },
+        { label: "N1", elev: 1358, color: "#00e676", isNode: true }
+      ], "Triángulo Vial-Represa (N3 ↔ N2 ↔ N1)", "+11.9 m libre");
+    } else if (mode === 'ilusion') {
+      highlight(['N2-N4', 'N1-N2', 'N3-N4']);
+      out.innerHTML = "<strong>Ruta Ribera Occidental (La Ilusión) → Bot IA:</strong> La señal cruza libremente sobre el espejo de agua del embalse hacia <strong>Nodo 2</strong> y <strong>Nodo 4</strong> sin obstáculos montañosos.";
+    } else if (mode === 'norte') {
+      highlight(['N3-N4', 'N1-N3', 'N1-N5', 'N2-N4', 'N2-N5']);
+      out.innerHTML = "<strong>Cobertura Norte ↔ Sur:</strong> Un mensaje desde la entrada norte (<strong>Nodo 4</strong>) cruza toda la vereda hasta el Río Nare (<strong>Nodo 5</strong>) tanto por el corredor vial como sobre el agua.";
+    } else if (mode === 'failover') {
+      highlight(['N2-N4', 'N2-N3', 'N2-N5']);
+      out.innerHTML = "<strong>Resiliencia en Emergencias:</strong> Si los nodos viales sufrieran un corte, el <strong>Nodo 2 (Península Represa)</strong> mantiene enlazados el Norte (N4 a 1.70 km), Centro (N3 a 1.04 km) y Sur (N5 a 1.82 km) sobre el embalse.";
+    } else if (mode === 'carolina_full') {
+      highlight(['C1-C2', 'C1-R1', 'R1-R2', 'R2-R3', 'R3-N4', 'R3-N2', 'R3-N1']);
+      out.innerHTML = "<strong>Troncal Carolina del Príncipe ↔ Playa Rica (50.7 km):</strong> El mensaje sale de <strong>C2 → C1 (El Radio, 2,061 m)</strong>, sube a <strong>R1 (Gómez Plata, 2,247 m)</strong>, cruza el cañón del Río Nus hacia <strong>R2 (1,885 m)</strong> y baja desde <strong>R3 (1,834 m)</strong> directo al Bot IA.";
+      renderProfileSVG([
+        { label: "C2", elev: 1830, color: "#38bdf8", isNode: true },
+        { label: "C1", elev: 2061, color: "#00e5ff", isNode: true },
+        { label: "R1", elev: 2247, color: "#ffd600", isNode: true },
+        { label: "Nus", elev: 1044, isNode: false },
+        { label: "R2", elev: 1885, color: "#ff6d00", isNode: true },
+        { label: "R3", elev: 1834, color: "#e040fb", isNode: true },
+        { label: "N1", elev: 1358, color: "#00e676", isNode: true }
+      ], "Troncal 4 Saltos (50.7 km)", "+19.5 m a +129.3 m");
+    } else if (mode === 'carolina_backup') {
+      highlight(['C1-C2', 'C1-R1', 'R1-R3', 'R3-N1', 'R3-N2']);
+      out.innerHTML = "<strong>Enlace Dorsal Directo (R1 ↔ R3 · 31.49 km):</strong> Incluso si R2 entrara en mantenimiento, la cumbre de Gómez Plata (<strong>R1, 2,247 m</strong>) tiene línea de vista directa (+50.9 m LOS y +41.4 m Fresnel) hasta el balcón del embalse (<strong>R3, 1,834 m</strong>).";
+      renderProfileSVG([
+        { label: "C1", elev: 2061, color: "#00e5ff", isNode: true },
+        { label: "R1", elev: 2247, color: "#ffd600", isNode: true },
+        { label: "Nus", elev: 1044, isNode: false },
+        { label: "R3", elev: 1834, color: "#e040fb", isNode: true },
+        { label: "N1", elev: 1358, color: "#00e676", isNode: true }
+      ], "Salto Dorsal Directo R1 ↔ R3 (31.49 km)", "+50.9 m libre");
+    }
+  }
+
+  renderAll();
+</script>
+</body>
+</html>
